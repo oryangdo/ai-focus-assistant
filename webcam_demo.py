@@ -19,6 +19,8 @@ from collections import Counter
 import cv2
 from ultralytics import YOLO
 
+from src.pomodoro import PomodoroTimer
+
 # yolov8s = "small" — better accuracy than nano, still reasonable for webcam
 MODEL_PATH = "yolov8s.pt"
 
@@ -36,7 +38,7 @@ IGNORED_CLASSES: list[str] = []
 PHONE_CLASS_NAME = "cell phone"
 # Only count toward the streak if at least one "cell phone" box is this
 # confident or higher (0.0–1.0 inclusive).
-PHONE_CONFIDENCE_THRESHOLD = 0.75
+PHONE_CONFIDENCE_THRESHOLD = 0.50
 # Banner appears when this streak reaches the required count.
 PHONE_STREAK_REQUIRED = 5
 # On a frame without a qualifying phone:
@@ -75,73 +77,88 @@ def tally_detections(result, class_names: dict[int, str]) -> tuple[int, dict[str
     return total, sorted_counts
 
 
-def draw_dashboard_overlay(
+def draw_unified_dashboard(
     frame,
     *,
+    timer: PomodoroTimer,
+    phone_detected: bool,
     fps: float,
     object_count: int,
-    class_counts: dict[str, int],
 ) -> None:
     """
-    Draw a lightweight stats panel over the webcam image.
-
-    A dark rectangle plus light border improve contrast; text lists FPS, raw object
-    count, then one line per class (name: instances). Anchored TOP-RIGHT so it
-    does not cover the PHONE DETECTED banner on the left.
+    Draw a single unified dashboard panel (top-right).
+    
+    Combines focus timer, phone status, FPS, and object count into one clean panel.
+    Uses status indicator dots instead of aggressive banners.
     """
-    lines: list[str] = [f"FPS: {fps:.1f}", f"Objects: {object_count}"]
-    if class_counts:
-        lines.append("-" * 14)
-        for name, cnt in class_counts.items():
-            lines.append(f"{name}: {cnt}")
-
-    text_metrics = []
-    max_w = 0
-    for line in lines:
-        (tw, th), baseline = cv2.getTextSize(
-            line, DASHBOARD_FONT, DASHBOARD_SCALE, DASHBOARD_THICKNESS
-        )
-        text_metrics.append((line, tw, th, baseline))
-        max_w = max(max_w, tw)
-
-    gap = DASHBOARD_LINE_GAP
-    if text_metrics:
-        content_h = sum(t[2] + t[3] for t in text_metrics)
-        content_h += gap * (len(text_metrics) - 1)
-    else:
-        content_h = 0
-
-    pad = 10
-    bg_w = max_w + 2 * pad
-    bg_h = content_h + 2 * pad
-
+    font = DASHBOARD_FONT
+    scale = 0.55
+    thickness = 1
+    line_height = 24
+    pad = 12
+    dot_radius = 6
+    
+    # Colors
+    white = (255, 255, 255)
+    gray = (160, 160, 160)
+    green = (80, 200, 80)      # Focus mode / OK status
+    amber = (80, 180, 255)     # Break mode / Phone detected (BGR: orange-ish)
+    dark_bg = (40, 40, 40)
+    
+    # Determine mode color
+    mode_color = green if timer.mode_str == "FOCUS" else amber
+    phone_color = amber if phone_detected else gray
+    
+    # Build rows: (label, value, dot_color or None)
+    rows = [
+        (timer.mode_str, timer.time_remaining_str, mode_color),
+        ("Phone", f"{timer.distraction_count} hits", phone_color if phone_detected else None),
+        ("FPS", f"{fps:.1f}", None),
+        ("Objects", str(object_count), None),
+    ]
+    
+    # Measure text to determine panel width
+    max_label_w = 0
+    max_value_w = 0
+    for label, value, _ in rows:
+        (lw, _), _ = cv2.getTextSize(label, font, scale, thickness)
+        (vw, _), _ = cv2.getTextSize(value, font, scale, thickness)
+        max_label_w = max(max_label_w, lw)
+        max_value_w = max(max_value_w, vw)
+    
+    col_gap = 20
+    dot_space = dot_radius * 2 + 8
+    panel_w = dot_space + max_label_w + col_gap + max_value_w + pad * 2
+    panel_h = len(rows) * line_height + pad * 2
+    
+    # Position (top-right)
     _h_frame, w_frame = frame.shape[:2]
     x_right = w_frame - DASHBOARD_MARGIN
-    x_left = x_right - bg_w
+    x_left = x_right - panel_w
     y_top = DASHBOARD_MARGIN
-
-    cv2.rectangle(frame, (x_left, y_top), (x_right, y_top + bg_h), (32, 32, 32), thickness=-1)
-    cv2.rectangle(frame, (x_left, y_top), (x_right, y_top + bg_h), (200, 200, 200), thickness=1)
-
-    cx = x_left + pad
-    cy = y_top + pad
-    white = (255, 255, 255)
-
-    for idx, (_line, _tw, th, baseline) in enumerate(text_metrics):
-        cy += th
-        cv2.putText(
-            frame,
-            text_metrics[idx][0],
-            (cx, cy),
-            DASHBOARD_FONT,
-            DASHBOARD_SCALE,
-            white,
-            DASHBOARD_THICKNESS,
-            cv2.LINE_AA,
-        )
-        cy += baseline
-        if idx < len(text_metrics) - 1:
-            cy += gap
+    
+    # Draw background
+    cv2.rectangle(frame, (x_left, y_top), (x_right, y_top + panel_h), dark_bg, -1)
+    cv2.rectangle(frame, (x_left, y_top), (x_right, y_top + panel_h), (100, 100, 100), 1)
+    
+    # Draw rows
+    cy = y_top + pad + line_height // 2 + 4
+    for label, value, dot_color in rows:
+        # Status dot (if any)
+        dot_x = x_left + pad + dot_radius
+        if dot_color is not None:
+            cv2.circle(frame, (dot_x, cy - 4), dot_radius, dot_color, -1)
+        
+        # Label (left-aligned after dot space)
+        label_x = x_left + pad + dot_space
+        cv2.putText(frame, label, (label_x, cy), font, scale, white, thickness, cv2.LINE_AA)
+        
+        # Value (right-aligned)
+        (vw, _), _ = cv2.getTextSize(value, font, scale, thickness)
+        value_x = x_right - pad - vw
+        cv2.putText(frame, value, (value_x, cy), font, scale, gray, thickness, cv2.LINE_AA)
+        
+        cy += line_height
 
 
 def cell_phone_confidences(result, class_names: dict[int, str]) -> list[float]:
@@ -169,39 +186,6 @@ def print_cell_phone_debug(phone_scores: list[float]) -> None:
     print(f"cell phone confidence: [{formatted}]")
 
 
-def draw_phone_warning(frame) -> None:
-    """Draw a bold red banner on the frame (modifies frame in place)."""
-    text = "PHONE DETECTED"
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    scale = 1.2
-    thickness = 3
-
-    (text_width, text_height), baseline = cv2.getTextSize(
-        text, font, scale, thickness
-    )
-    padding = 12
-    x, y = 20, 30 + text_height
-
-    # Filled red rectangle behind the text
-    cv2.rectangle(
-        frame,
-        (x - padding, y - text_height - padding),
-        (x + text_width + padding, y + baseline + padding),
-        (0, 0, 255),
-        -1,
-    )
-    cv2.putText(
-        frame,
-        text,
-        (x, y),
-        font,
-        scale,
-        (255, 255, 255),
-        thickness,
-        cv2.LINE_AA,
-    )
-
-
 def main() -> None:
     # --- 1. Load the YOLO model ---
     # On first run, Ultralytics downloads yolov8s.pt automatically.
@@ -210,7 +194,7 @@ def main() -> None:
     print("Model ready. Starting webcam.")
 
     # --- 2. Open the webcam (same as before) ---
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
         raise RuntimeError(
@@ -225,6 +209,11 @@ def main() -> None:
 
     # Running smoothed FPS (updated once per loop — measures webcam read + YOLO + drawing).
     fps_smooth: float | None = None
+
+    # Pomodoro timer for focus sessions
+    pomodoro = PomodoroTimer(auto_start=True)
+    # Track if we already counted this phone detection event
+    phone_distraction_counted = False
 
     try:
         while True:
@@ -265,11 +254,20 @@ def main() -> None:
                 else:
                     phone_streak = 0
 
-            if phone_streak >= PHONE_STREAK_REQUIRED:
-                draw_phone_warning(annotated_frame)
+            phone_detected = phone_streak >= PHONE_STREAK_REQUIRED
+            if phone_detected:
+                # Count as distraction once per phone detection event
+                if not phone_distraction_counted:
+                    pomodoro.add_distraction()
+                    phone_distraction_counted = True
+            else:
+                # Reset flag when phone is no longer detected
+                phone_distraction_counted = False
 
-            # --- 7. Timing + FPS overlay ---
-            # Seconds spent on everything above (capture through overlays).
+            # --- 7. Pomodoro timer update ---
+            pomodoro.update()
+
+            # --- 8. Timing + FPS calculation ---
             elapsed = max(time.monotonic() - loop_start, 1e-9)
             instant_fps = 1.0 / elapsed
             if fps_smooth is None:
@@ -279,12 +277,13 @@ def main() -> None:
                     FPS_SMOOTHING * fps_smooth + (1 - FPS_SMOOTHING) * instant_fps
                 )
 
-            # --- 8. Dashboard panel (FPS + counts / last so text stays readable) ---
-            draw_dashboard_overlay(
+            # --- 9. Unified dashboard (top-right) ---
+            draw_unified_dashboard(
                 annotated_frame,
+                timer=pomodoro,
+                phone_detected=phone_detected,
                 fps=fps_smooth,
                 object_count=object_count,
-                class_counts=class_counts,
             )
 
             cv2.imshow(WINDOW_NAME, annotated_frame)
