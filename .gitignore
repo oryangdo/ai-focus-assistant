@@ -15,6 +15,15 @@ build/
 .vscode/
 .DS_Store
 
-# Model weights (large files — add specific names as you download them)
+# Model weights (large files — downloaded automatically by ultralytics)
 models/*.pt
 models/*.onnx
+*.pt
+*.onnx
+
+# Ultralytics cache
+Ultralytics/
+
+# Generated data and reports
+data/
+reports/
