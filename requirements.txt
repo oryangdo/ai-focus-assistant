@@ -3,3 +3,6 @@ opencv-python>=4.9.0
 
 # YOLO (we'll use this in a later step)
 ultralytics>=8.0.0
+
+# Dashboard
+streamlit>=1.30.0

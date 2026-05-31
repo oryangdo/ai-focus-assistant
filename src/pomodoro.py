@@ -2,10 +2,12 @@
 Pomodoro timer module for focus sessions.
 
 Provides a simple state machine for 25-minute focus sessions
-followed by 5-minute breaks.
+followed by 5-minute breaks, with session tracking.
 """
 
 import time
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 
 
@@ -14,12 +16,25 @@ class PomodoroMode(Enum):
     BREAK = "BREAK"
 
 
+@dataclass
+class SessionData:
+    """Data for a completed focus session."""
+    timestamp: str
+    duration_seconds: float
+    distractions: int
+    phone_visible_seconds: float
+    focus_score: int
+    peak_risk_score: int = 0
+    avg_risk_score: int = 0
+
+
 class PomodoroTimer:
     """
     A Pomodoro timer that tracks focus/break sessions.
     
     Call update() each frame to advance the timer.
     Call add_distraction() when a distraction is detected.
+    Call add_phone_time(delta) to accumulate phone visibility.
     """
     
     FOCUS_DURATION = 25 * 60  # 25 minutes in seconds
@@ -29,13 +44,22 @@ class PomodoroTimer:
         self.mode = PomodoroMode.FOCUS
         self.time_remaining = self.FOCUS_DURATION
         self.distraction_count = 0
+        self.phone_visible_seconds = 0.0
         self.running = auto_start
         self._last_update = time.monotonic() if auto_start else None
+        self._session_start = datetime.now()
+        self._last_session_data: SessionData | None = None
+        # Risk tracking
+        self._last_phone_time: float | None = None  # monotonic time of last phone detection
+        self._risk_scores: list[int] = []  # samples for averaging
     
-    def update(self) -> None:
-        """Advance the timer based on elapsed real time."""
+    def update(self) -> SessionData | None:
+        """
+        Advance the timer based on elapsed real time.
+        Returns SessionData if a focus session just completed, else None.
+        """
         if not self.running:
-            return
+            return None
         
         now = time.monotonic()
         if self._last_update is not None:
@@ -44,22 +68,106 @@ class PomodoroTimer:
         self._last_update = now
         
         if self.time_remaining <= 0:
-            self._switch_mode()
+            return self._switch_mode()
+        return None
     
-    def _switch_mode(self) -> None:
-        """Toggle between FOCUS and BREAK modes."""
+    def _switch_mode(self) -> SessionData | None:
+        """Toggle between FOCUS and BREAK modes. Returns session data if focus ended."""
+        session_data = None
+        
         if self.mode == PomodoroMode.FOCUS:
+            session_data = self._create_session_data()
+            self._last_session_data = session_data
             self.mode = PomodoroMode.BREAK
             self.time_remaining = self.BREAK_DURATION
         else:
             self.mode = PomodoroMode.FOCUS
             self.time_remaining = self.FOCUS_DURATION
-            self.distraction_count = 0  # Reset for new focus session
+            self._reset_session_tracking()
+        
+        return session_data
+    
+    def _create_session_data(self) -> SessionData:
+        """Create session data from current tracking."""
+        duration = self._get_elapsed_seconds()
+        score = self._calculate_focus_score(duration)
+        peak_risk = max(self._risk_scores) if self._risk_scores else 0
+        avg_risk = int(sum(self._risk_scores) / len(self._risk_scores)) if self._risk_scores else 0
+        return SessionData(
+            timestamp=self._session_start.isoformat(timespec="seconds"),
+            duration_seconds=round(duration, 1),
+            distractions=self.distraction_count,
+            phone_visible_seconds=round(self.phone_visible_seconds, 1),
+            focus_score=score,
+            peak_risk_score=peak_risk,
+            avg_risk_score=avg_risk,
+        )
+    
+    def _get_elapsed_seconds(self) -> float:
+        """Get seconds elapsed since session started."""
+        return (datetime.now() - self._session_start).total_seconds()
+    
+    def _calculate_focus_score(self, duration: float) -> int:
+        """Calculate focus score 0-100 based on phone time and distractions."""
+        if duration <= 0:
+            return 100
+        phone_ratio_penalty = (self.phone_visible_seconds / duration) * 50
+        distraction_penalty = self.distraction_count * 5
+        score = 100 - phone_ratio_penalty - distraction_penalty
+        return max(0, min(100, int(score)))
+    
+    def _reset_session_tracking(self) -> None:
+        """Reset tracking for a new focus session."""
+        self.distraction_count = 0
+        self.phone_visible_seconds = 0.0
+        self._session_start = datetime.now()
+        self._last_session_data = None
+        self._last_phone_time = None
+        self._risk_scores = []
     
     def add_distraction(self) -> None:
         """Increment the distraction counter (only during focus mode)."""
         if self.mode == PomodoroMode.FOCUS:
             self.distraction_count += 1
+    
+    def add_phone_time(self, seconds: float) -> None:
+        """Add to phone visible time (only during focus mode)."""
+        if self.mode == PomodoroMode.FOCUS:
+            self.phone_visible_seconds += seconds
+    
+    def mark_phone_detected(self) -> None:
+        """Mark that phone was just detected (for risk calculation)."""
+        self._last_phone_time = time.monotonic()
+    
+    def record_risk_score(self, score: int) -> None:
+        """Record a risk score sample (only during focus mode)."""
+        if self.mode == PomodoroMode.FOCUS:
+            self._risk_scores.append(score)
+    
+    @property
+    def elapsed_seconds(self) -> float:
+        """Get seconds elapsed since session started."""
+        return self._get_elapsed_seconds()
+    
+    @property
+    def seconds_since_phone(self) -> float | None:
+        """Get seconds since phone was last detected (None if never)."""
+        if self._last_phone_time is None:
+            return None
+        return time.monotonic() - self._last_phone_time
+    
+    def end_session_early(self) -> SessionData | None:
+        """Force end the current focus session early. Returns session data if in focus mode."""
+        if self.mode != PomodoroMode.FOCUS:
+            return None
+        self.time_remaining = 0
+        return self._switch_mode()
+    
+    def get_current_session_data(self) -> SessionData | None:
+        """Get session data for current focus session (for saving on quit)."""
+        if self.mode != PomodoroMode.FOCUS:
+            return None
+        return self._create_session_data()
     
     def start(self) -> None:
         """Start or resume the timer."""
@@ -76,7 +184,7 @@ class PomodoroTimer:
         """Reset to a fresh focus session."""
         self.mode = PomodoroMode.FOCUS
         self.time_remaining = self.FOCUS_DURATION
-        self.distraction_count = 0
+        self._reset_session_tracking()
         if self.running:
             self._last_update = time.monotonic()
     
@@ -91,3 +199,8 @@ class PomodoroTimer:
     def mode_str(self) -> str:
         """Return the current mode as a string."""
         return self.mode.value
+    
+    @property
+    def last_session(self) -> SessionData | None:
+        """Return the most recently completed session data."""
+        return self._last_session_data
