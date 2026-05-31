@@ -1,8 +1,12 @@
 # Computer vision
 opencv-python>=4.9.0
 
-# YOLO (we'll use this in a later step)
+# YOLO object detection
 ultralytics>=8.0.0
+
+# Analytics
+matplotlib>=3.8.0
+numpy>=1.26.0
 
 # Dashboard
 streamlit>=1.30.0

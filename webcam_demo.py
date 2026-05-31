@@ -5,11 +5,6 @@ Detects all COCO classes and draws boxes/labels/scores like before.
 Shows "PHONE DETECTED" only after repeated high-confidence phone frames.
 Draws a small FPS + detection summary panel on top of the video.
 
-To run, paste:
-cd /Users/orlandoyang/Downloads/summer_project
-source .venv/bin/activate
-python src/webcam_demo.py
-
 Press 'q' to quit.
 """
 
