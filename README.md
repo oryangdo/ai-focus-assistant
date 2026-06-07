@@ -9,6 +9,8 @@ An AI-powered productivity assistant that uses **YOLOv8** and **OpenCV** to dete
 - **Pomodoro timer** — 25-minute focus / 5-minute break cycles with on-screen HUD
 - **Focus scoring** — score based on distractions and phone visible time
 - **Distraction risk estimation** — live LOW / MEDIUM / HIGH risk during focus sessions
+- **Predictive warnings** — on-screen alerts before a phone distraction is logged
+- **Risk trend analytics** — historical peak/avg risk trends in CLI and dashboard
 - **Session logging** — append-only CSV history in `data/sessions.csv`
 - **Analytics CLI** — trends, rolling averages, personal records, time-of-day stats, charts in `reports/`
 - **Streamlit dashboard** — session history, metrics, and charts
@@ -127,11 +129,10 @@ Tunable constants (thresholds, model path, timer lengths) live in:
 
 ## Roadmap
 
-See `MASTER_CHECKLIST.md` for feature stages. Current focus areas:
+See `MASTER_CHECKLIST.md` for feature stages. Stage 7 (behavioral intelligence) is complete. Next focus:
 
-- Risk trend analytics in `src/analytics.py`
-- Predictive distraction warnings
-- README polish, screenshots, and portfolio packaging (Stage 9)
+- Product polish: screenshots, config system, UI improvements (Stage 9)
+- ML personalization (Stage 8)
 
 ## License
 

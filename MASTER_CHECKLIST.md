@@ -81,22 +81,39 @@
 # Stage 7 — Behavioral Intelligence
 
 * [x] Live distraction risk score
-* [ ] Risk trend analytics
+* [x] Risk trend analytics
 * [x] Risk prediction heuristics
-* [ ] Predictive distraction warnings
+* [x] Predictive distraction warnings
 * [x] Risk dashboard integration
 * [x] Extensible ML-ready risk architecture
 
 ---
 
-# Stage 8 — ML & Personalization
+# Stage 8 — Attention & Gaze
 
-* [ ] Personalized focus model
-* [ ] Historical behavior modeling
-* [ ] Distraction prediction model
-* [ ] Fine-tuned behavioral scoring
-* [ ] Recommendation system
-* [ ] Adaptive Pomodoro durations
+## Stage 8.1 — Head Pose / Gaze-Away Detection
+
+* [x] Gaze-away detection (MediaPipe Face Landmarker)
+* [x] Continuous look-away tracking (5+ second threshold)
+* [x] Gaze distraction counting (no repeat until forward again)
+* [x] Live HUD gaze status
+* [x] Session logging (gaze_distractions, gaze_away_seconds)
+* [x] CSV schema migration for gaze/risk columns
+* [x] Analytics and dashboard integration
+* [x] Gaze factor in live risk estimator
+* [x] Focus score includes gaze penalties
+* [x] Historical gaze baselines in risk estimation
+
+### Stage 8.1 — Remaining polish
+
+* [ ] Live HUD gaze_away_seconds total
+* [ ] Session summary overlay on quit-with-q
+
+## Stage 8.2+ — Future
+
+* [ ] Posture tracking
+* [ ] Eye gaze tracking (fine-grained)
+* [ ] Study recommendation engine
 
 ---
 
@@ -108,7 +125,7 @@
 * [ ] App packaging
 * [ ] Installer/build pipeline
 * [ ] Demo video
-* [ ] Professional README
+* [x] Professional README
 * [ ] Screenshots/GIFs
 * [ ] Public GitHub release
 
@@ -141,6 +158,4 @@
 
 # Current Immediate Goal
 
-Complete Stage 7:
-- Risk trend analytics (add to analytics.py)
-- Predictive distraction warnings (proactive alerts)
+Stage 8.1 complete (including CSV migration, gaze focus score, and historical gaze risk baselines). Remaining 8.1 polish: live HUD gaze-away total and quit summary overlay. Next: Stage 9 product polish.

@@ -18,6 +18,7 @@ build/
 # Model weights (large files — downloaded automatically by ultralytics)
 models/*.pt
 models/*.onnx
+models/*.task
 *.pt
 *.onnx
 

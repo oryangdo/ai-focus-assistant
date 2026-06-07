@@ -14,8 +14,10 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.session_logger import CSV_HEADERS, ensure_sessions_csv, get_csv_path
 
-DATA_FILE = Path(__file__).parent.parent / "data" / "sessions.csv"
+
+DATA_FILE = get_csv_path()
 REPORTS_DIR = Path(__file__).parent.parent / "reports"
 
 ROLLING_WINDOW = 5
@@ -25,19 +27,35 @@ def load_sessions() -> list[dict]:
     """Load sessions from CSV file."""
     if not DATA_FILE.exists():
         return []
-    
+
+    ensure_sessions_csv(DATA_FILE)
+
     sessions = []
     with open(DATA_FILE, newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
             sessions.append({
-                "timestamp": row["timestamp"],
-                "duration_seconds": float(row["duration_seconds"]),
-                "distractions": int(row["distractions"]),
-                "phone_visible_seconds": float(row["phone_visible_seconds"]),
-                "focus_score": int(row["focus_score"]),
+                "timestamp": row.get("timestamp", ""),
+                "duration_seconds": float(row.get("duration_seconds") or 0),
+                "distractions": int(row.get("distractions") or 0),
+                "phone_visible_seconds": float(row.get("phone_visible_seconds") or 0),
+                "focus_score": int(row.get("focus_score") or 0),
+                "peak_risk_score": int(row.get("peak_risk_score") or 0),
+                "avg_risk_score": int(row.get("avg_risk_score") or 0),
+                "gaze_distractions": int(row.get("gaze_distractions") or 0),
+                "gaze_away_seconds": float(row.get("gaze_away_seconds") or 0),
             })
     return sessions
+
+
+def sessions_have_risk_data(sessions: list[dict]) -> bool:
+    """True if any session has recorded risk scores."""
+    return any(s["peak_risk_score"] > 0 or s["avg_risk_score"] > 0 for s in sessions)
+
+
+def sessions_have_gaze_data(sessions: list[dict]) -> bool:
+    """True if any session has recorded gaze metrics."""
+    return any(s["gaze_away_seconds"] > 0 or s["gaze_distractions"] > 0 for s in sessions)
 
 
 def calculate_stats(sessions: list[dict]) -> dict:
@@ -51,7 +69,7 @@ def calculate_stats(sessions: list[dict]) -> dict:
     total_distractions = sum(s["distractions"] for s in sessions)
     scores = [s["focus_score"] for s in sessions]
     
-    return {
+    stats = {
         "total_sessions": total_sessions,
         "total_focus_time_seconds": total_focus_time,
         "total_focus_time_hours": total_focus_time / 3600,
@@ -62,6 +80,17 @@ def calculate_stats(sessions: list[dict]) -> dict:
         "best_score": max(scores),
         "worst_score": min(scores),
     }
+
+    if sessions_have_gaze_data(sessions):
+        stats["average_gaze_distractions"] = (
+            sum(s["gaze_distractions"] for s in sessions) / total_sessions
+        )
+        stats["average_gaze_away_seconds"] = (
+            sum(s["gaze_away_seconds"] for s in sessions) / total_sessions
+        )
+        stats["total_gaze_away_seconds"] = sum(s["gaze_away_seconds"] for s in sessions)
+
+    return stats
 
 
 # ─────────────────────────────────────────────────────────────
@@ -101,13 +130,62 @@ def calculate_trends(sessions: list[dict]) -> dict:
     phone_slope, phone_arrow = calculate_trend(phone_times)
     dist_slope, dist_arrow = calculate_trend(distractions)
     
-    return {
+    result = {
         "score_trend": score_arrow,
         "score_slope": score_slope,
         "phone_trend": phone_arrow,
         "phone_slope": phone_slope,
         "distraction_trend": dist_arrow,
         "distraction_slope": dist_slope,
+    }
+
+    if sessions_have_gaze_data(sessions):
+        gaze_away = [s["gaze_away_seconds"] for s in sessions]
+        gaze_events = [float(s["gaze_distractions"]) for s in sessions]
+        gaze_away_slope, gaze_away_arrow = calculate_trend(gaze_away)
+        gaze_event_slope, gaze_event_arrow = calculate_trend(gaze_events)
+        result.update({
+            "gaze_away_trend": gaze_away_arrow,
+            "gaze_away_slope": gaze_away_slope,
+            "gaze_distraction_trend": gaze_event_arrow,
+            "gaze_distraction_slope": gaze_event_slope,
+        })
+
+    return result
+
+
+def calculate_risk_trends(sessions: list[dict]) -> dict:
+    """Calculate trends for peak and average risk scores."""
+    if len(sessions) < 2 or not sessions_have_risk_data(sessions):
+        return {}
+
+    peak_scores = [float(s["peak_risk_score"]) for s in sessions]
+    avg_scores = [float(s["avg_risk_score"]) for s in sessions]
+
+    peak_slope, peak_arrow = calculate_trend(peak_scores)
+    avg_slope, avg_arrow = calculate_trend(avg_scores)
+
+    return {
+        "peak_risk_trend": peak_arrow,
+        "peak_risk_slope": peak_slope,
+        "avg_risk_trend": avg_arrow,
+        "avg_risk_slope": avg_slope,
+    }
+
+
+def calculate_risk_stats(sessions: list[dict]) -> dict:
+    """Summary statistics for risk scores."""
+    if not sessions_have_risk_data(sessions):
+        return {}
+
+    peak_scores = [s["peak_risk_score"] for s in sessions]
+    avg_scores = [s["avg_risk_score"] for s in sessions]
+
+    return {
+        "average_peak_risk": sum(peak_scores) / len(peak_scores),
+        "average_avg_risk": sum(avg_scores) / len(avg_scores),
+        "highest_peak_risk": max(peak_scores),
+        "lowest_avg_risk": min(avg_scores),
     }
 
 
@@ -224,6 +302,8 @@ def print_summary(
     rolling: dict,
     records: dict,
     time_of_day: dict,
+    risk_trends: dict | None = None,
+    risk_stats: dict | None = None,
 ) -> None:
     """Print a clean terminal summary with all analytics."""
     if not stats:
@@ -238,6 +318,10 @@ def print_summary(
     print(f"  Total Sessions:          {stats['total_sessions']}")
     print(f"  Total Focus Time:        {stats['total_focus_time_hours']:.1f} hours")
     print(f"  Average Focus Score:     {stats['average_focus_score']:.1f}")
+    print(
+        "    (100 − phone time ratio×50 − phone hits×5 "
+        "− gaze events×2 − gaze-away ratio×25, clamped 0–100)"
+    )
     print(f"  Average Distractions:    {stats['average_distractions']:.1f} per session")
     print(f"  Total Phone Time:        {format_time_mmss(stats['total_phone_time_seconds'])}")
     print(f"  Best Session Score:      {stats['best_score']}")
@@ -253,6 +337,52 @@ def print_summary(
         print(f"  Focus Score:       {trends['score_trend']} {score_label}")
         print(f"  Phone Time:        {trends['phone_trend']} {phone_label}")
         print(f"  Distractions:      {trends['distraction_trend']} {dist_label}")
+
+    if risk_stats:
+        print()
+        print("─" * 15 + " RISK STATS " + "─" * 15)
+        print(f"  Avg Peak Risk:       {risk_stats['average_peak_risk']:.1f}")
+        print(f"  Avg Session Risk:    {risk_stats['average_avg_risk']:.1f}")
+        print(f"  Highest Peak Risk:   {risk_stats['highest_peak_risk']:.0f}")
+
+    if risk_trends:
+        print()
+        print("─" * 14 + " RISK TRENDS " + "─" * 14)
+        peak_label = (
+            "worsening" if risk_trends["peak_risk_trend"] == "↑"
+            else "improving" if risk_trends["peak_risk_trend"] == "↓"
+            else "stable"
+        )
+        avg_label = (
+            "worsening" if risk_trends["avg_risk_trend"] == "↑"
+            else "improving" if risk_trends["avg_risk_trend"] == "↓"
+            else "stable"
+        )
+        print(f"  Peak Risk:         {risk_trends['peak_risk_trend']} {peak_label}")
+        print(f"  Avg Risk:          {risk_trends['avg_risk_trend']} {avg_label}")
+
+    if stats.get("average_gaze_away_seconds") is not None:
+        print()
+        print("─" * 15 + " GAZE STATS " + "─" * 15)
+        print(f"  Avg Gaze Away:       {format_time_mmss(stats['average_gaze_away_seconds'])}")
+        print(f"  Avg Gaze Events:     {stats['average_gaze_distractions']:.1f} per session")
+        print(f"  Total Gaze Away:     {format_time_mmss(stats['total_gaze_away_seconds'])}")
+
+    if trends.get("gaze_away_trend"):
+        print()
+        print("─" * 14 + " GAZE TRENDS " + "─" * 14)
+        away_label = (
+            "worsening" if trends["gaze_away_trend"] == "↑"
+            else "improving" if trends["gaze_away_trend"] == "↓"
+            else "stable"
+        )
+        event_label = (
+            "worsening" if trends["gaze_distraction_trend"] == "↑"
+            else "improving" if trends["gaze_distraction_trend"] == "↓"
+            else "stable"
+        )
+        print(f"  Gaze Away Time:    {trends['gaze_away_trend']} {away_label}")
+        print(f"  Gaze Distractions: {trends['gaze_distraction_trend']} {event_label}")
     
     # Rolling averages
     if rolling and rolling.get("window_size", 0) >= 2:
@@ -434,6 +564,69 @@ def generate_charts(sessions: list[dict], time_of_day: dict) -> None:
         plt.tight_layout()
         plt.savefig(REPORTS_DIR / "rolling_avg.png", dpi=100)
         plt.close()
+
+    # 7. Risk trends (peak + average per session)
+    if len(sessions) >= 1 and sessions_have_risk_data(sessions):
+        peak_risk = [s["peak_risk_score"] for s in sessions]
+        avg_risk = [s["avg_risk_score"] for s in sessions]
+
+        plt.figure(figsize=(8, 4))
+        plt.plot(session_nums, peak_risk, marker="o", linewidth=2, color="#F44336", label="Peak Risk")
+        plt.plot(session_nums, avg_risk, marker="s", linewidth=2, color="#FF5722", label="Avg Risk")
+        plt.axhline(y=33, color="#4CAF50", linestyle="--", alpha=0.5, label="LOW/MEDIUM")
+        plt.axhline(y=66, color="#FF9800", linestyle="--", alpha=0.5, label="MEDIUM/HIGH")
+        plt.xlabel("Session")
+        plt.ylabel("Risk Score")
+        plt.title("Distraction Risk Over Sessions")
+        plt.ylim(0, 105)
+        plt.xticks(session_nums)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(REPORTS_DIR / "risk_trends.png", dpi=100)
+        plt.close()
+
+        if len(sessions) >= 2:
+            fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+            x = np.array(session_nums)
+
+            for ax, values, title, color in [
+                (axes[0], peak_risk, "Peak Risk Trend", "#C62828"),
+                (axes[1], avg_risk, "Average Risk Trend", "#E64A19"),
+            ]:
+                ax.plot(x, values, marker="o", color=color, label="Risk")
+                z = np.polyfit(x, values, 1)
+                p = np.poly1d(z)
+                ax.plot(x, p(x), "--", color=color, alpha=0.7, linewidth=2, label="Trend")
+                ax.set_xlabel("Session")
+                ax.set_ylabel("Score")
+                ax.set_title(title)
+                ax.set_ylim(0, 105)
+                ax.legend()
+
+            plt.tight_layout()
+            plt.savefig(REPORTS_DIR / "risk_trend_lines.png", dpi=100)
+            plt.close()
+
+    if len(sessions) >= 1 and sessions_have_gaze_data(sessions):
+        gaze_away = [s["gaze_away_seconds"] for s in sessions]
+        gaze_events = [s["gaze_distractions"] for s in sessions]
+
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+        axes[0].bar(session_nums, gaze_away, color="#9C27B0", edgecolor="#6A1B9A")
+        axes[0].set_xlabel("Session")
+        axes[0].set_ylabel("Seconds")
+        axes[0].set_title("Gaze Away Time per Session")
+        axes[0].set_xticks(session_nums)
+
+        axes[1].bar(session_nums, gaze_events, color="#673AB7", edgecolor="#4527A0")
+        axes[1].set_xlabel("Session")
+        axes[1].set_ylabel("Events")
+        axes[1].set_title("Gaze Distractions per Session")
+        axes[1].set_xticks(session_nums)
+
+        plt.tight_layout()
+        plt.savefig(REPORTS_DIR / "gaze_metrics.png", dpi=100)
+        plt.close()
     
     print(f"  Charts saved to {REPORTS_DIR}/")
     print()
@@ -449,9 +642,15 @@ def main() -> None:
     rolling = calculate_rolling_averages(sessions)
     records = calculate_personal_records(sessions)
     time_of_day = analyze_time_of_day(sessions)
+    risk_trends = calculate_risk_trends(sessions)
+    risk_stats = calculate_risk_stats(sessions)
     
     # Output
-    print_summary(stats, trends, rolling, records, time_of_day)
+    print_summary(
+        stats, trends, rolling, records, time_of_day,
+        risk_trends=risk_trends or None,
+        risk_stats=risk_stats or None,
+    )
     generate_charts(sessions, time_of_day)
 
 

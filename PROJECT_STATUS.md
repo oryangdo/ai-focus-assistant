@@ -17,37 +17,49 @@ The application detects phone distractions during Pomodoro focus sessions, track
 * Phone-specific detection
 * Person detection
 * Confidence threshold filtering
+* MediaPipe Face Landmarker head-pose / gaze-away detection
+* Personal baseline calibration (~3s) with deviation-based look-away detection
 
 ## Focus Session System
 
 * Pomodoro timer
 * Focus/break modes
-* Distraction tracking
+* Distraction tracking (phone + gaze)
 * Phone visible time tracking
-* Focus score calculation
-* Session summary overlay
+* Gaze away time and gaze distraction events (5+ sec continuous look-away)
+* Focus score calculation (phone + gaze penalties)
+* Live HUD with gaze status (CAL / FWD / AWAY / NO FACE)
+* Session summary overlay with gaze metrics
+
+## Behavioral Intelligence
+
+* Live distraction risk score (LOW / MEDIUM / HIGH)
+* Gaze-weighted live risk factor (30%)
+* Historical risk baselines from CSV (phone + gaze history)
+* Predictive on-screen warnings (phone streak, gaze look-away, rising risk)
 
 ## Persistence
 
-* CSV session logging
+* CSV session logging (9-column schema)
+* Automatic CSV header migration with `.bak` backup
 * Historical data persists between runs
 * Session timestamps stored
 
 ## Analytics
 
 * Historical analytics script
-* Trend analysis
+* Trend analysis (focus, phone, risk, gaze)
 * Rolling averages
 * Personal records
 * Time-of-day analysis
-* Charts generated in reports/
+* Charts generated in reports/ (including gaze_metrics.png)
 
 ## Dashboard
 
 * Streamlit dashboard
-* Session table
-* Historical charts
-* Aggregate metrics
+* Session table with gaze and risk columns
+* Historical charts (focus, phone, risk, gaze)
+* Aggregate metrics with formula help text
 
 ---
 
@@ -55,7 +67,12 @@ The application detects phone distractions during Pomodoro focus sessions, track
 
 ## Main Files
 
-* src/webcam_demo.py
+* webcam_demo.py — main webcam entry point
+* src/gaze_tracker.py — MediaPipe head-pose / gaze-away tracking
+* src/hud.py — OpenCV HUD overlays
+* src/pomodoro.py — Pomodoro timer and session data
+* src/risk_estimator.py — heuristic risk model
+* src/session_logger.py — CSV persistence and schema migration
 * src/analytics.py
 * src/dashboard.py
 
@@ -73,10 +90,11 @@ The application detects phone distractions during Pomodoro focus sessions, track
 
 YOLO detection runs in real time using OpenCV webcam frames.
 
-Phone detection events feed into:
+Phone and gaze detection events feed into:
 
 * distraction tracking
 * focus scoring
+* live risk estimation
 * Pomodoro session analytics
 
 Session data is saved to CSV and later analyzed through:
@@ -84,32 +102,43 @@ Session data is saved to CSV and later analyzed through:
 * analytics.py
 * Streamlit dashboard
 
+Modular layout: gaze tracking, HUD, risk, and persistence are separate modules consumed by webcam_demo.py.
+
 ---
 
 # Current Focus Score Logic
 
-Focus score is based on:
+Score starts at 100 and subtracts penalties (clamped to 0–100):
 
-* distraction count
-* total phone visible time
-* session duration
+* **Phone time share** — `(phone_visible_seconds / duration) × 50` (major)
+* **Phone distractions** — `distractions × 5` (major)
+* **Gaze distractions** — `gaze_distraction_count × 2` (minor)
+* **Gaze away share** — `(gaze_away_seconds / duration) × 25` (minor)
 
-(Current implementation may evolve later.)
+---
+
+# Current Risk Logic
+
+Live risk combines five weighted factors: session fatigue, recent phone activity, current distractions, historical CSV baselines (phone 60% / gaze 40%), and live gaze head pose (30% weight). Historical gaze averages from sessions.csv raise baseline risk for users who frequently look away.
 
 ---
 
 # Current Goals
 
+## Completed
+
+* **Stage 7** — Behavioral intelligence (live risk, warnings, risk analytics, dashboard)
+* **Stage 8.1** — Gaze-away detection, HUD, logging, analytics, risk integration
+* **Stage 8.1 polish** — CSV schema migration, gaze in focus score, historical gaze risk baselines
+
 ## Next Major Goal
 
-Implement distraction risk prediction system.
+**Stage 9 — Product polish:**
 
-Desired features:
-
-* live distraction risk score
-* behavioral trend analysis
-* predictive heuristics
-* future ML model integration
+* Config/settings system
+* HUD polish (live gaze-away time total, summary on quit)
+* Dashboard redesign and screenshots
+* Demo video and public GitHub release
 
 ---
 
@@ -127,10 +156,10 @@ Desired features:
 
 # Known Issues / Improvements
 
-* Current trends are based on small dataset
-* Focus score formula may need refinement
-* UI could be cleaner
-* YOLO model weights currently tracked in Git
-* Need better dashboard polish
+* Trends based on a small session dataset
+* Live HUD shows gaze event count but not running gaze-away seconds total
+* Quit-with-q saves session but skips the 5-second summary overlay
+* Face landmarker model downloads on first run to `models/face_landmarker.task`
+* UI and dashboard could use further polish
 
 ---

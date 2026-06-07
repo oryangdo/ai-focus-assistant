@@ -26,6 +26,8 @@ class SessionData:
     focus_score: int
     peak_risk_score: int = 0
     avg_risk_score: int = 0
+    gaze_distractions: int = 0
+    gaze_away_seconds: float = 0.0
 
 
 class PomodoroTimer:
@@ -39,6 +41,12 @@ class PomodoroTimer:
     
     FOCUS_DURATION = 25 * 60  # 25 minutes in seconds
     BREAK_DURATION = 5 * 60   # 5 minutes in seconds
+
+    # Focus score weights (100 minus penalties, clamped to [0, 100])
+    FOCUS_SCORE_PHONE_RATIO_WEIGHT = 50       # major: phone time share of session
+    FOCUS_SCORE_PHONE_DISTRACTION_WEIGHT = 5  # major: per phone distraction event
+    FOCUS_SCORE_GAZE_DISTRACTION_WEIGHT = 2   # minor: per 5+ sec gaze-away event
+    FOCUS_SCORE_GAZE_AWAY_RATIO_WEIGHT = 25   # minor: gaze-away time share of session
     
     def __init__(self, auto_start: bool = True):
         self.mode = PomodoroMode.FOCUS
@@ -52,6 +60,8 @@ class PomodoroTimer:
         # Risk tracking
         self._last_phone_time: float | None = None  # monotonic time of last phone detection
         self._risk_scores: list[int] = []  # samples for averaging
+        self.gaze_distraction_count = 0
+        self.gaze_away_seconds = 0.0
     
     def update(self) -> SessionData | None:
         """
@@ -101,6 +111,8 @@ class PomodoroTimer:
             focus_score=score,
             peak_risk_score=peak_risk,
             avg_risk_score=avg_risk,
+            gaze_distractions=self.gaze_distraction_count,
+            gaze_away_seconds=round(self.gaze_away_seconds, 1),
         )
     
     def _get_elapsed_seconds(self) -> float:
@@ -108,12 +120,41 @@ class PomodoroTimer:
         return (datetime.now() - self._session_start).total_seconds()
     
     def _calculate_focus_score(self, duration: float) -> int:
-        """Calculate focus score 0-100 based on phone time and distractions."""
+        """
+        Calculate focus score 0-100 from phone and gaze behavior.
+
+        Formula (penalties subtracted from 100, result clamped to [0, 100]):
+
+            phone_ratio_penalty       = (phone_visible_seconds / duration) * 50
+            phone_distraction_penalty = distractions * 5
+            gaze_event_penalty        = gaze_distraction_count * 2
+            gaze_away_ratio_penalty   = (gaze_away_seconds / duration) * 25
+
+        Phone penalties are the largest contributors; gaze penalties are smaller.
+        """
         if duration <= 0:
             return 100
-        phone_ratio_penalty = (self.phone_visible_seconds / duration) * 50
-        distraction_penalty = self.distraction_count * 5
-        score = 100 - phone_ratio_penalty - distraction_penalty
+
+        phone_ratio_penalty = (
+            self.phone_visible_seconds / duration
+        ) * self.FOCUS_SCORE_PHONE_RATIO_WEIGHT
+        phone_distraction_penalty = (
+            self.distraction_count * self.FOCUS_SCORE_PHONE_DISTRACTION_WEIGHT
+        )
+        gaze_event_penalty = (
+            self.gaze_distraction_count * self.FOCUS_SCORE_GAZE_DISTRACTION_WEIGHT
+        )
+        gaze_away_ratio_penalty = (
+            self.gaze_away_seconds / duration
+        ) * self.FOCUS_SCORE_GAZE_AWAY_RATIO_WEIGHT
+
+        score = (
+            100
+            - phone_ratio_penalty
+            - phone_distraction_penalty
+            - gaze_event_penalty
+            - gaze_away_ratio_penalty
+        )
         return max(0, min(100, int(score)))
     
     def _reset_session_tracking(self) -> None:
@@ -124,6 +165,8 @@ class PomodoroTimer:
         self._last_session_data = None
         self._last_phone_time = None
         self._risk_scores = []
+        self.gaze_distraction_count = 0
+        self.gaze_away_seconds = 0.0
     
     def add_distraction(self) -> None:
         """Increment the distraction counter (only during focus mode)."""
@@ -143,6 +186,12 @@ class PomodoroTimer:
         """Record a risk score sample (only during focus mode)."""
         if self.mode == PomodoroMode.FOCUS:
             self._risk_scores.append(score)
+
+    def sync_gaze_metrics(self, gaze_away_seconds: float, gaze_distraction_count: int) -> None:
+        """Copy gaze totals from GazeTracker (only during focus mode)."""
+        if self.mode == PomodoroMode.FOCUS:
+            self.gaze_away_seconds = gaze_away_seconds
+            self.gaze_distraction_count = gaze_distraction_count
     
     @property
     def elapsed_seconds(self) -> float:
