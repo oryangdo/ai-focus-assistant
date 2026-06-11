@@ -10,6 +10,7 @@ numpy>=1.26.0
 
 # Dashboard
 streamlit>=1.30.0
+pandas>=2.0.0
 
 # Gaze / head pose tracking
 mediapipe>=0.10.0

@@ -1,8 +1,8 @@
 """
 Analytics script for focus session history.
 
-Reads data/sessions.csv, calculates statistics, prints a summary,
-and generates charts saved to reports/.
+Reads session history from Application Support, calculates statistics,
+prints a summary, and generates charts saved to the user reports folder.
 
 Run with: .venv/bin/python -m src.analytics
 """
@@ -14,11 +14,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.paths import reports_dir
 from src.session_logger import CSV_HEADERS, ensure_sessions_csv, get_csv_path
 
 
 DATA_FILE = get_csv_path()
-REPORTS_DIR = Path(__file__).parent.parent / "reports"
+REPORTS_DIR = reports_dir()
 
 ROLLING_WINDOW = 5
 

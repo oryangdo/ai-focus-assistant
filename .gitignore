@@ -25,6 +25,9 @@ models/*.task
 # Ultralytics cache
 Ultralytics/
 
+# Release artifacts
+release/
+
 # Generated data and reports
 data/
 reports/

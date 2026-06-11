@@ -1,0 +1,54 @@
+#!/bin/bash
+# Launcher for the Streamlit dashboard (opens in your default browser).
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+PYTHON="$PROJECT_ROOT/.venv/bin/python"
+PORT=8501
+LOG_FILE="${TMPDIR:-/tmp}/ai-focus-assistant-dashboard.log"
+
+if [[ ! -x "$PYTHON" ]]; then
+    osascript <<EOF
+display dialog "One-time setup is required.
+
+Open Terminal in the project folder and run:
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+Then double-click this app again." buttons {"OK"} default button 1 with icon caution with title "Focus Dashboard"
+EOF
+    exit 1
+fi
+
+export PYTHONPATH="$PROJECT_ROOT"
+cd "$PROJECT_ROOT"
+
+if curl -sf "http://127.0.0.1:${PORT}/_stcore/health" >/dev/null 2>&1; then
+    open "http://127.0.0.1:${PORT}"
+    exit 0
+fi
+
+nohup "$PYTHON" -m streamlit run src/dashboard.py \
+    --server.headless true \
+    --server.port "$PORT" \
+    --browser.gatherUsageStats false \
+    >>"$LOG_FILE" 2>&1 &
+
+for _ in $(seq 1 30); do
+    if curl -sf "http://127.0.0.1:${PORT}/_stcore/health" >/dev/null 2>&1; then
+        open "http://127.0.0.1:${PORT}"
+        exit 0
+    fi
+    sleep 0.5
+done
+
+osascript <<EOF
+display dialog "Could not start the dashboard.
+
+See log file:
+$LOG_FILE" buttons {"OK"} default button 1 with icon stop with title "Focus Dashboard"
+EOF
+exit 1

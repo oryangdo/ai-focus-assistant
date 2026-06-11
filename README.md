@@ -8,36 +8,24 @@ Built with **YOLOv8**, **MediaPipe**, **OpenCV**, and **Streamlit**.
 
 ## Demo
 
-**[▶ Watch demo video](https://youtu.be/PLACEHOLDER)** *(add link when ready)*
-
-A 60–90 second walkthrough: live focus session → phone/gaze detection → session summary → dashboard.
+See **Demo video** below. Planned walkthrough: home screen → focus session → session summary → optional dashboard.
 
 ---
 
 ## Screenshots
 
-| Live focus HUD | Session summary |
-|:---:|:---:|
-| ![Live focus session HUD](docs/images/live-hud.png) | ![Session summary overlay](docs/images/session-summary.png) |
-| Pomodoro timer, gaze status, live risk, phone detection | Focus score, phone time, gaze metrics, peak risk |
+Screenshots and GIFs are planned for Stage 9. Add assets to `docs/images/` when ready:
 
-| Streamlit dashboard | Analytics charts |
-|:---:|:---:|
-| ![Streamlit dashboard](docs/images/dashboard.png) | ![Analytics charts](docs/images/analytics-charts.png) |
-| Session history, aggregate metrics, trend lines | CLI-generated focus, phone, risk, and gaze charts |
-
-> Add PNGs to `docs/images/` before publishing. Paths above are ready to use once assets exist.
+- `live-hud.png` — live focus session with HUD
+- `session-summary.png` — session complete overlay with Open Dashboard button
+- `dashboard.png` — Streamlit dashboard in browser
+- `phone-detection.gif`, `gaze-tracking.gif`, `risk-warning.gif` — short demos
 
 ---
 
-## GIFs
+## Demo video
 
-| Phone detection | Gaze tracking | Risk warning |
-|:---:|:---:|:---:|
-| ![Phone detection demo](docs/images/phone-detection.gif) | ![Gaze tracking demo](docs/images/gaze-tracking.gif) | ![Risk warning demo](docs/images/risk-warning.gif) |
-| YOLO streak-based phone alert | Head-pose look-away detection | Predictive on-screen warning |
-
-> Short screen recordings (5–15 s each) work well here. Export as GIF or use GitHub-supported formats.
+**[▶ Watch demo video](https://youtu.be/PLACEHOLDER)** *(coming in Stage 9)*
 
 ---
 
@@ -82,7 +70,7 @@ flowchart TB
 
     subgraph Persistence["Persistence Layer"]
         LOG["Session Logger<br/><i>Schema migration · timestamps</i>"]
-        CSV[("CSV Storage<br/><i>data/sessions.csv</i>")]
+        CSV[("CSV Storage<br/><i>Application Support</i>")]
     end
 
     subgraph Offline["Offline Analytics & Visualization"]
@@ -147,7 +135,51 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-First run auto-downloads YOLO weights (`yolov8s.pt`) and the MediaPipe face model (`models/face_landmarker.task`).
+First run auto-downloads YOLO weights and the MediaPipe face model into your user cache if they are not bundled with the app.
+
+### Desktop use (macOS)
+
+**Option A — repo launchers (one-time Python setup)**
+
+```bash
+./scripts/setup_mac_apps.sh
+```
+
+Then double-click:
+
+| App | What it does |
+|-----|----------------|
+| `macos/AI Focus Assistant.app` | Opens the live webcam focus session |
+| `macos/Open Dashboard.app` | Opens the Streamlit dashboard in your browser |
+
+**Option B — standalone release zip (focus app for end users)**
+
+Build and package on your Mac:
+
+```bash
+./scripts/build_mac_app.sh
+./scripts/package_release.sh
+```
+
+Output: `release/AI-Focus-Assistant-mac.zip` containing:
+
+| App | What it does |
+|-----|----------------|
+| `AI Focus Assistant.app` | Standalone focus session (~1 GB, no Python required) |
+| `Open Dashboard.app` | Opens dashboard in browser (requires Python + Streamlit setup) |
+
+| Topic | Detail |
+|-------|--------|
+| Start session | Home screen → press **SPACE** |
+| End session | Natural timer end or **Q** during focus → persistent summary overlay |
+| Dismiss summary | **ESC** or click **X** |
+| Open dashboard | Click **Open Dashboard** on summary, press **D**, or use `Open Dashboard.app` |
+| Camera | Allow access when macOS prompts on first launch |
+| Session data | `~/Library/Application Support/AI Focus Assistant/data/sessions.csv` |
+| Charts | `~/Library/Application Support/AI Focus Assistant/reports/` |
+| Dashboard UI | Opens in **Safari/Chrome** — not embedded in the focus app window |
+
+The focus app and dashboard are **two separate apps**. The standalone focus `.app` does not bundle Streamlit; use `Open Dashboard.app` (with Python installed) when you want full history and charts.
 
 ---
 
@@ -159,7 +191,12 @@ First run auto-downloads YOLO weights (`yolov8s.pt`) and the MediaPipe face mode
 python webcam_demo.py    # or ./run.sh
 ```
 
-Press `q` to quit — saves the current session if active.
+| Key / action | Behavior |
+|--------------|----------|
+| **SPACE** | Start focus session from home screen |
+| **Q** | Save and show summary if in focus; quit from home/summary |
+| **ESC** / **X** | Dismiss session summary |
+| **D** / **Open Dashboard** | Open stats in browser (when summary is visible) |
 
 **Analytics & dashboard**
 
@@ -168,18 +205,21 @@ python -m src.analytics
 python -m streamlit run src/dashboard.py
 ```
 
+Or double-click `macos/Open Dashboard.app` / `Open Dashboard.app` from the release zip.
+
 ---
 
 ## Analytics
 
-Sessions append to `data/sessions.csv` (focus score, distractions, phone/gaze time, risk scores). The CLI prints trends and writes charts to `reports/`; the Streamlit dashboard shows session history and aggregate metrics.
+Sessions append to `~/Library/Application Support/AI Focus Assistant/data/sessions.csv` (focus score, distractions, phone/gaze time, risk scores). The CLI prints trends and writes charts to `~/Library/Application Support/AI Focus Assistant/reports/`; the Streamlit dashboard reads the same CSV.
 
 ---
 
 ## Roadmap
 
-- **Next:** UI polish, config system, screenshots/GIFs, demo video, public release (Stage 9)
-- **Future:** ML-based distraction prediction, desktop packaging, study recommendations
+- **In progress:** Stage 9.1 macOS packaging (build + release zip)
+- **Next:** Screenshots/GIFs, demo video, config system, public release
+- **Future:** ML-based distraction prediction, study recommendations
 
 Details: [`MASTER_CHECKLIST.md`](MASTER_CHECKLIST.md) · [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 

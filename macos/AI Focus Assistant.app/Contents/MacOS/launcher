@@ -1,0 +1,26 @@
+#!/bin/bash
+# Launcher for AI Focus Assistant (development / repo-based .app bundle).
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+PYTHON="$PROJECT_ROOT/.venv/bin/python"
+
+if [[ ! -x "$PYTHON" ]]; then
+    osascript <<EOF
+display dialog "One-time setup is required.
+
+Open Terminal in the project folder and run:
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+Then double-click this app again." buttons {"OK"} default button 1 with icon caution with title "AI Focus Assistant"
+EOF
+    exit 1
+fi
+
+export PYTHONPATH="$PROJECT_ROOT"
+cd "$PROJECT_ROOT"
+exec "$PYTHON" webcam_demo.py

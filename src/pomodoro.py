@@ -94,7 +94,9 @@ class PomodoroTimer:
             self.mode = PomodoroMode.FOCUS
             self.time_remaining = self.FOCUS_DURATION
             self._reset_session_tracking()
-        
+            self.running = False
+            self._last_update = None
+
         return session_data
     
     def _create_session_data(self) -> SessionData:
@@ -217,6 +219,16 @@ class PomodoroTimer:
         if self.mode != PomodoroMode.FOCUS:
             return None
         return self._create_session_data()
+
+    def finalize_focus_session(self) -> SessionData | None:
+        """End the current focus session early and store it as last_session."""
+        if self.mode != PomodoroMode.FOCUS or not self.running:
+            return None
+        session_data = self._create_session_data()
+        self._last_session_data = session_data
+        self.running = False
+        self._last_update = None
+        return session_data
     
     def start(self) -> None:
         """Start or resume the timer."""

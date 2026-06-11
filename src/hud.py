@@ -1,5 +1,7 @@
 """OpenCV HUD overlays for the webcam focus session."""
 
+from dataclasses import dataclass
+
 import cv2
 
 from src.gaze_tracker import GazeState, GazeStatus
@@ -8,6 +10,13 @@ from src.risk_estimator import DistractionWarning, RiskEstimate
 
 DASHBOARD_FONT = cv2.FONT_HERSHEY_SIMPLEX
 DASHBOARD_MARGIN = 12
+
+
+@dataclass
+class SummaryOverlayLayout:
+    """Clickable regions on the session summary overlay."""
+    close_rect: tuple[int, int, int, int]
+    dashboard_rect: tuple[int, int, int, int]
 
 
 def draw_unified_dashboard(
@@ -63,8 +72,17 @@ def draw_unified_dashboard(
         gaze_text = "NO FACE"
         gaze_color = gray if timer.mode_str == "FOCUS" else None
 
+    if not timer.running and timer.mode_str == "FOCUS":
+        timer_label = "READY"
+        timer_value = "Press SPACE"
+        timer_color = gray
+    else:
+        timer_label = timer.mode_str
+        timer_value = timer.time_remaining_str
+        timer_color = mode_color
+
     rows = [
-        (timer.mode_str, timer.time_remaining_str, mode_color),
+        (timer_label, timer_value, timer_color),
         ("Phone", f"{timer.distraction_count} hits", phone_color if phone_detected else None),
         ("Gaze", f"{gaze_text} ({gaze.gaze_distraction_count})", gaze_color),
         ("Risk", risk_text, risk_color if timer.mode_str == "FOCUS" else None),
@@ -142,13 +160,64 @@ def draw_warning_banner(frame, warning: DistractionWarning) -> None:
     )
 
 
-def draw_session_summary(frame, session: SessionData) -> None:
-    """Draw a centered session summary overlay."""
+def draw_home_screen(frame) -> None:
+    """Draw the start screen shown before the user begins a focus session."""
+    font = DASHBOARD_FONT
+    title_scale = 0.9
+    body_scale = 0.6
+    thickness = 2
+    line_height = 34
+    pad = 20
+
+    lines = [
+        "AI Focus Assistant",
+        "Press SPACE to start a focus session",
+        "Press Q to quit",
+    ]
+
+    max_w = 0
+    for i, line in enumerate(lines):
+        scale = title_scale if i == 0 else body_scale
+        (tw, _), _ = cv2.getTextSize(line, font, scale, thickness if i == 0 else 1)
+        max_w = max(max_w, tw)
+
+    panel_w = max_w + pad * 2
+    panel_h = len(lines) * line_height + pad * 2
+
+    h_frame, w_frame = frame.shape[:2]
+    x_left = (w_frame - panel_w) // 2
+    y_top = (h_frame - panel_h) // 2
+
+    cv2.rectangle(frame, (x_left, y_top), (x_left + panel_w, y_top + panel_h), (35, 35, 45), -1)
+    cv2.rectangle(frame, (x_left, y_top), (x_left + panel_w, y_top + panel_h), (120, 120, 180), 2)
+
+    white = (255, 255, 255)
+    accent = (180, 180, 255)
+    cy = y_top + pad + line_height - 8
+    for i, line in enumerate(lines):
+        scale = title_scale if i == 0 else body_scale
+        thick = thickness if i == 0 else 1
+        (tw, _), _ = cv2.getTextSize(line, font, scale, thick)
+        tx = x_left + (panel_w - tw) // 2
+        color = accent if i == 0 else white
+        cv2.putText(frame, line, (tx, cy), font, scale, color, thick, cv2.LINE_AA)
+        cy += line_height
+
+
+def _point_in_rect(x: int, y: int, rect: tuple[int, int, int, int]) -> bool:
+    x1, y1, x2, y2 = rect
+    return x1 <= x <= x2 and y1 <= y <= y2
+
+
+def draw_session_summary(frame, session: SessionData) -> SummaryOverlayLayout:
+    """Draw a centered session summary overlay with dismiss and dashboard actions."""
     font = DASHBOARD_FONT
     scale = 0.65
     thickness = 2
     line_height = 28
     pad = 16
+    button_h = 34
+    button_pad = 10
 
     phone_mins, phone_secs = divmod(int(session.phone_visible_seconds), 60)
     phone_time_str = f"{phone_mins}:{phone_secs:02d}"
@@ -161,6 +230,7 @@ def draw_session_summary(frame, session: SessionData) -> None:
         f"Distractions: {session.distractions}",
         f"Phone Time: {phone_time_str}",
         f"Gaze Away: {gaze_time_str} ({session.gaze_distractions} events)",
+        "ESC to close",
     ]
 
     max_w = 0
@@ -168,15 +238,36 @@ def draw_session_summary(frame, session: SessionData) -> None:
         (tw, _), _ = cv2.getTextSize(line, font, scale, thickness)
         max_w = max(max_w, tw)
 
-    panel_w = max_w + pad * 2
-    panel_h = len(lines) * line_height + pad * 2
+    dashboard_label = "Open Dashboard"
+    (btn_tw, _), _ = cv2.getTextSize(dashboard_label, font, 0.55, 1)
+    panel_w = max(max_w, btn_tw + button_pad * 2) + pad * 2
+    panel_h = len(lines) * line_height + button_h + pad * 3
 
     h_frame, w_frame = frame.shape[:2]
     x_left = (w_frame - panel_w) // 2
     y_top = (h_frame - panel_h) // 2
+    x_right = x_left + panel_w
+    y_bottom = y_top + panel_h
 
-    cv2.rectangle(frame, (x_left, y_top), (x_left + panel_w, y_top + panel_h), (40, 60, 40), -1)
-    cv2.rectangle(frame, (x_left, y_top), (x_left + panel_w, y_top + panel_h), (80, 200, 80), 2)
+    cv2.rectangle(frame, (x_left, y_top), (x_right, y_bottom), (40, 60, 40), -1)
+    cv2.rectangle(frame, (x_left, y_top), (x_right, y_bottom), (80, 200, 80), 2)
+
+    close_size = 18
+    close_x2 = x_right - 8
+    close_x1 = close_x2 - close_size
+    close_y1 = y_top + 8
+    close_y2 = close_y1 + close_size
+    cv2.rectangle(frame, (close_x1, close_y1), (close_x2, close_y2), (60, 60, 60), -1)
+    cv2.putText(
+        frame,
+        "X",
+        (close_x1 + 4, close_y1 + 14),
+        font,
+        0.5,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
 
     white = (255, 255, 255)
     green = (80, 200, 80)
@@ -187,3 +278,40 @@ def draw_session_summary(frame, session: SessionData) -> None:
         color = green if i == 0 else white
         cv2.putText(frame, line, (tx, cy), font, scale, color, thickness, cv2.LINE_AA)
         cy += line_height
+
+    btn_y1 = y_bottom - pad - button_h
+    btn_y2 = y_bottom - pad
+    btn_x1 = x_left + pad
+    btn_x2 = x_right - pad
+    cv2.rectangle(frame, (btn_x1, btn_y1), (btn_x2, btn_y2), (50, 90, 50), -1)
+    cv2.rectangle(frame, (btn_x1, btn_y1), (btn_x2, btn_y2), green, 2)
+    btn_tx = btn_x1 + ((btn_x2 - btn_x1) - btn_tw) // 2
+    btn_ty = btn_y1 + button_h - 10
+    cv2.putText(
+        frame,
+        dashboard_label,
+        (btn_tx, btn_ty),
+        font,
+        0.55,
+        white,
+        1,
+        cv2.LINE_AA,
+    )
+
+    return SummaryOverlayLayout(
+        close_rect=(close_x1, close_y1, close_x2, close_y2),
+        dashboard_rect=(btn_x1, btn_y1, btn_x2, btn_y2),
+    )
+
+
+def summary_hit_test(
+    x: int,
+    y: int,
+    layout: SummaryOverlayLayout,
+) -> str | None:
+    """Return 'close', 'dashboard', or None for a click on the summary overlay."""
+    if _point_in_rect(x, y, layout.close_rect):
+        return "close"
+    if _point_in_rect(x, y, layout.dashboard_rect):
+        return "dashboard"
+    return None

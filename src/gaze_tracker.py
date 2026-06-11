@@ -8,21 +8,14 @@ Counts a gaze distraction only after 5+ continuous seconds looking away.
 
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from statistics import median
-from urllib.request import urlretrieve
 
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python as mp_tasks
 from mediapipe.tasks.python import vision
 
-
-MODEL_URL = (
-    "https://storage.googleapis.com/mediapipe-models/"
-    "face_landmarker/face_landmarker/float16/1/face_landmarker.task"
-)
-MODEL_PATH = Path(__file__).parent.parent / "models" / "face_landmarker.task"
+from src.paths import ensure_face_landmarker_model
 
 
 class GazeStatus(Enum):
@@ -43,18 +36,6 @@ class GazeState:
     @property
     def status_str(self) -> str:
         return self.status.value
-
-
-def _ensure_model() -> Path:
-    """Download the face landmarker model on first run if needed."""
-    if MODEL_PATH.exists():
-        return MODEL_PATH
-
-    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    print(f"Downloading face landmarker model to {MODEL_PATH} ...")
-    urlretrieve(MODEL_URL, MODEL_PATH)
-    print("Face landmarker model ready.")
-    return MODEL_PATH
 
 
 class GazeTracker:
@@ -78,7 +59,7 @@ class GazeTracker:
     FORWARD_CONFIRM_SECONDS = 0.35
 
     def __init__(self) -> None:
-        model_path = _ensure_model()
+        model_path = ensure_face_landmarker_model()
         base_options = mp_tasks.BaseOptions(model_asset_path=str(model_path))
         options = vision.FaceLandmarkerOptions(
             base_options=base_options,

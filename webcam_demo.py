@@ -14,14 +14,21 @@ from collections import Counter
 import cv2
 from ultralytics import YOLO
 
+from src.dashboard_launcher import launch_dashboard
 from src.gaze_tracker import GazeState, GazeStatus, GazeTracker
-from src.hud import draw_session_summary, draw_unified_dashboard, draw_warning_banner
+from src.hud import (
+    SummaryOverlayLayout,
+    draw_home_screen,
+    draw_session_summary,
+    draw_unified_dashboard,
+    draw_warning_banner,
+    summary_hit_test,
+)
+from src.paths import ensure_runtime_dirs, ensure_yolo_model
 from src.pomodoro import PomodoroTimer
 from src.risk_estimator import RiskEstimator, RiskEstimate, DistractionWarning
 from src.session_logger import ensure_sessions_csv, get_csv_path, log_session
-
-# yolov8s = "small" — better accuracy than nano, still reasonable for webcam
-MODEL_PATH = "yolov8s.pt"
+from src.ui_utils import show_error
 
 # Minimum confidence for ANY box to be returned by YOLO (0.0–1.0).
 DETECTION_CONFIDENCE_THRESHOLD = 0.60
@@ -122,7 +129,7 @@ def update_risk_and_warnings(
     current_risk: RiskEstimate | None,
 ) -> tuple[RiskEstimate | None, DistractionWarning | None, int, int | None]:
     """Sample risk and evaluate proactive warnings during focus mode."""
-    if pomodoro.mode_str != "FOCUS":
+    if pomodoro.mode_str != "FOCUS" or not pomodoro.running:
         return None, None, risk_sample_counter, None
 
     risk_sample_counter += 1
@@ -155,27 +162,74 @@ def update_risk_and_warnings(
 
 
 def main() -> None:
-    print(f"Loading YOLO model: {MODEL_PATH} ...")
-    model = YOLO(MODEL_PATH)
+    ensure_runtime_dirs()
+
+    try:
+        model_path = ensure_yolo_model()
+    except Exception as exc:
+        show_error(
+            "Model Error",
+            f"Could not load the YOLO detection model.\n\n{exc}",
+        )
+        return
+
+    print(f"Loading YOLO model: {model_path} ...")
+    try:
+        model = YOLO(str(model_path))
+    except Exception as exc:
+        show_error(
+            "Model Error",
+            f"Could not initialize YOLO.\n\n{exc}",
+        )
+        return
     print("Model ready. Starting webcam.")
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
-        raise RuntimeError(
-            "Could not open webcam. Check that a camera is connected and "
-            "no other app is using it exclusively."
+        show_error(
+            "Camera Error",
+            "Could not open your webcam.\n\n"
+            "Check that a camera is connected, no other app is using it, "
+            "and that AI Focus Assistant has camera permission in "
+            "System Settings → Privacy & Security → Camera.",
         )
+        return
 
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
 
     phone_streak = 0
     fps_smooth: float | None = None
-    pomodoro = PomodoroTimer(auto_start=True)
+    pomodoro = PomodoroTimer(auto_start=False)
     gaze_tracker = GazeTracker()
     phone_distraction_counted = False
     last_frame_time = time.monotonic()
-    summary_until: float | None = None
+    show_session_summary = False
+    summary_layout: SummaryOverlayLayout | None = None
     key_buffer = ""
+
+    app_state: dict[str, object] = {
+        "show_session_summary": show_session_summary,
+        "summary_layout": summary_layout,
+    }
+
+    def on_mouse(event, x, y, _flags, _param) -> None:
+        if event != cv2.EVENT_LBUTTONDOWN:
+            return
+        if not app_state["show_session_summary"]:
+            return
+        layout = app_state["summary_layout"]
+        if layout is None:
+            return
+        action = summary_hit_test(x, y, layout)
+        if action == "close":
+            app_state["show_session_summary"] = False
+            app_state["summary_layout"] = None
+            if pomodoro.mode_str == "BREAK":
+                pomodoro.start()
+        elif action == "dashboard":
+            _open_dashboard_from_summary()
+
+    cv2.setMouseCallback(WINDOW_NAME, on_mouse)
 
     hist_distractions, hist_phone_time, hist_gaze_events, hist_gaze_away = (
         load_historical_stats()
@@ -197,8 +251,44 @@ def main() -> None:
         continuous_away_seconds=0.0,
     )
 
+    def dismiss_session_summary() -> None:
+        nonlocal show_session_summary, summary_layout
+        show_session_summary = False
+        summary_layout = None
+        app_state["show_session_summary"] = False
+        app_state["summary_layout"] = None
+        if pomodoro.mode_str == "BREAK":
+            pomodoro.start()
+
+    def present_session_summary() -> None:
+        nonlocal show_session_summary
+        show_session_summary = True
+        app_state["show_session_summary"] = True
+        pomodoro.pause()
+
+    def _open_dashboard_from_summary() -> None:
+        if launch_dashboard():
+            return
+        show_error(
+            "Dashboard Error",
+            "Could not open the dashboard.\n\n"
+            "The dashboard requires Streamlit (Python setup).\n"
+            "Use Open Dashboard.app from the release folder, or run:\n"
+            "python -m streamlit run src/dashboard.py",
+        )
+
+    def start_focus_session() -> None:
+        pomodoro.reset()
+        pomodoro.start()
+        gaze_tracker.reset_session()
+        nonlocal phone_streak, phone_distraction_counted
+        phone_streak = 0
+        phone_distraction_counted = False
+
     try:
         while True:
+            show_session_summary = bool(app_state["show_session_summary"])
+            summary_layout = app_state["summary_layout"]  # type: ignore[assignment]
             loop_start = time.monotonic()
             frame_delta = loop_start - last_frame_time
             last_frame_time = loop_start
@@ -208,9 +298,9 @@ def main() -> None:
                 print("Failed to read frame from webcam.")
                 break
 
-            in_focus = pomodoro.mode_str == "FOCUS"
-            gaze_state = gaze_tracker.update(frame, frame_delta, active=in_focus)
-            if in_focus:
+            session_active = pomodoro.running and pomodoro.mode_str == "FOCUS"
+            gaze_state = gaze_tracker.update(frame, frame_delta, active=session_active)
+            if session_active:
                 pomodoro.sync_gaze_metrics(
                     gaze_state.gaze_away_seconds,
                     gaze_state.gaze_distraction_count,
@@ -237,7 +327,7 @@ def main() -> None:
                     phone_streak = 0
 
             phone_detected = phone_streak >= PHONE_STREAK_REQUIRED
-            if phone_detected:
+            if session_active and phone_detected:
                 if not phone_distraction_counted:
                     pomodoro.add_distraction()
                     phone_distraction_counted = True
@@ -246,10 +336,10 @@ def main() -> None:
             else:
                 phone_distraction_counted = False
 
-            session_data = pomodoro.update()
+            session_data = None if show_session_summary else pomodoro.update()
             if session_data is not None:
                 log_session(session_data)
-                summary_until = time.monotonic() + 5.0
+                present_session_summary()
                 gaze_tracker.reset_session()
                 print(
                     f"Session logged: score={session_data.focus_score}, "
@@ -295,30 +385,43 @@ def main() -> None:
                 object_count=object_count,
             )
 
-            if current_warning is not None and in_focus:
+            if current_warning is not None and session_active:
                 draw_warning_banner(annotated_frame, current_warning)
 
-            if summary_until is not None:
-                if time.monotonic() < summary_until:
-                    last_session = pomodoro.last_session
-                    if last_session is not None:
-                        draw_session_summary(annotated_frame, last_session)
-                else:
-                    summary_until = None
+            awaiting_start = not pomodoro.running and pomodoro.mode_str == "FOCUS"
+            if show_session_summary:
+                last_session = pomodoro.last_session
+                if last_session is not None:
+                    summary_layout = draw_session_summary(annotated_frame, last_session)
+                    app_state["summary_layout"] = summary_layout
+            elif awaiting_start:
+                draw_home_screen(annotated_frame)
 
             cv2.imshow(WINDOW_NAME, annotated_frame)
 
             key = cv2.waitKey(1) & 0xFF
-            if key == ord("q"):
-                session_data = pomodoro.get_current_session_data()
-                if session_data is not None:
-                    log_session(session_data)
-                    print(
-                        f"Session saved on quit: score={session_data.focus_score}, "
-                        f"duration={session_data.duration_seconds:.0f}s, "
-                        f"distractions={session_data.distractions}"
-                    )
-                break
+            if key == 27 and show_session_summary:
+                dismiss_session_summary()
+            elif key in (ord("d"), ord("D")) and show_session_summary:
+                _open_dashboard_from_summary()
+            elif key == ord(" ") and awaiting_start:
+                start_focus_session()
+            elif key == ord("q"):
+                if show_session_summary or awaiting_start:
+                    break
+                if pomodoro.running and pomodoro.mode_str == "FOCUS":
+                    session_data = pomodoro.finalize_focus_session()
+                    if session_data is not None:
+                        log_session(session_data)
+                        present_session_summary()
+                        gaze_tracker.reset_session()
+                        print(
+                            f"Session saved on quit: score={session_data.focus_score}, "
+                            f"duration={session_data.duration_seconds:.0f}s, "
+                            f"distractions={session_data.distractions}"
+                        )
+                else:
+                    break
             elif key != 255:
                 key_buffer += chr(key)
                 key_buffer = key_buffer[-7:]
@@ -326,7 +429,7 @@ def main() -> None:
                     session_data = pomodoro.end_session_early()
                     if session_data is not None:
                         log_session(session_data)
-                        summary_until = time.monotonic() + 5.0
+                        present_session_summary()
                         gaze_tracker.reset_session()
                         print(
                             f"Session ended early! score={session_data.focus_score}, "

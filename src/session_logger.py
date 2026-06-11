@@ -6,6 +6,7 @@ import csv
 import shutil
 from pathlib import Path
 
+from src.paths import data_dir
 from src.pomodoro import SessionData
 
 
@@ -39,10 +40,8 @@ TRAILING_EXTRA_COLUMNS = [
 
 
 def get_csv_path() -> Path:
-    """Get path to sessions CSV, creating data directory if needed."""
-    data_dir = Path(__file__).parent.parent / "data"
-    data_dir.mkdir(exist_ok=True)
-    return data_dir / "sessions.csv"
+    """Get path to sessions CSV in the user's Application Support folder."""
+    return data_dir() / "sessions.csv"
 
 
 def _normalize_row(old_header: list[str], row: list[str]) -> dict[str, str]:

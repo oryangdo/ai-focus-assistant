@@ -42,6 +42,7 @@
 * [x] Session completion overlay
 * [x] Focus score calculation
 * [x] Session summaries
+* [x] Home screen (SPACE to start — timer does not auto-start)
 
 ---
 
@@ -51,6 +52,7 @@
 * [x] Historical session persistence
 * [x] Timestamped sessions
 * [x] Session data accumulation between runs
+* [x] Application Support user data paths (`src/paths.py`)
 
 ---
 
@@ -75,6 +77,7 @@
 * [x] Aggregate dashboard metrics
 * [x] Dashboard data loading
 * [x] Historical visualization
+* [x] Launch from session summary (Open Dashboard button)
 
 ---
 
@@ -103,11 +106,12 @@
 * [x] Gaze factor in live risk estimator
 * [x] Focus score includes gaze penalties
 * [x] Historical gaze baselines in risk estimation
+* [x] Persistent session summary overlay (ESC / X dismiss)
+* [x] Session summary overlay on quit-with-q
 
 ### Stage 8.1 — Remaining polish
 
 * [ ] Live HUD gaze_away_seconds total
-* [ ] Session summary overlay on quit-with-q
 
 ## Stage 8.2+ — Future
 
@@ -122,11 +126,11 @@
 * [ ] Config/settings system
 * [ ] Better UI/UX polish
 * [ ] Dashboard redesign
-* [ ] App packaging
-* [ ] Installer/build pipeline
+* [x] App packaging (scripts + launchers — build verification in progress)
+* [x] Installer/build pipeline (`build_mac_app.sh`, `package_release.sh`)
 * [ ] Demo video
 * [x] Professional README
-* [ ] Screenshots/GIFs
+* [ ] Screenshots/GIFs (placeholder section only)
 * [ ] Public GitHub release
 
 ---
@@ -158,4 +162,4 @@
 
 # Current Immediate Goal
 
-Stage 8.1 complete (including CSV migration, gaze focus score, and historical gaze risk baselines). Remaining 8.1 polish: live HUD gaze-away total and quit summary overlay. Next: Stage 9 product polish.
+Complete Stage 9.1: verify PyInstaller build, ship release zip (focus app + dashboard launcher), add README screenshots. Remaining 8.1 polish: live HUD gaze-away total.
