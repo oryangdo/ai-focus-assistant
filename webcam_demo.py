@@ -108,14 +108,6 @@ def frame_qualifies_for_phone_streak(phone_scores: list[float]) -> bool:
     return any(score >= PHONE_CONFIDENCE_THRESHOLD for score in phone_scores)
 
 
-def print_cell_phone_debug(phone_scores: list[float]) -> None:
-    """Log raw phone confidences so you can compare real phones vs false positives."""
-    if not phone_scores:
-        return
-    formatted = ", ".join(f"{s:.3f}" for s in phone_scores)
-    print(f"cell phone confidence: [{formatted}]")
-
-
 def update_risk_and_warnings(
     *,
     pomodoro: PomodoroTimer,
@@ -316,7 +308,6 @@ def main() -> None:
             annotated_frame = result.plot()
 
             phone_scores = cell_phone_confidences(result, model.names)
-            print_cell_phone_debug(phone_scores)
 
             if frame_qualifies_for_phone_streak(phone_scores):
                 phone_streak += 1
