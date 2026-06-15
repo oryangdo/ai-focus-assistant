@@ -4,7 +4,7 @@ High-level direction. Detailed checklist: [`MASTER_CHECKLIST.md`](MASTER_CHECKLI
 
 ---
 
-## Completed (Stages 0–8.1)
+## Completed (Stages 0–9.1 core)
 
 - Real-time webcam pipeline (YOLO phone/person detection)
 - Pomodoro focus sessions with focus scoring
@@ -13,6 +13,7 @@ High-level direction. Detailed checklist: [`MASTER_CHECKLIST.md`](MASTER_CHECKLI
 - CSV session logging with schema migration
 - CLI analytics and Streamlit dashboard
 - macOS launchers and build scripts
+- PyInstaller focus-app packaging (`release_mac.sh`, verified release zip workflow)
 
 ---
 
@@ -22,7 +23,7 @@ High-level direction. Detailed checklist: [`MASTER_CHECKLIST.md`](MASTER_CHECKLI
 
 - README screenshots/GIFs and demo video
 - Config/settings system
-- PyInstaller build verification and public release
+- Public GitHub release (upload focus-app zip)
 
 ### Stage 10 — Productivity Intelligence
 

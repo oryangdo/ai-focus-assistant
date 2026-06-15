@@ -140,13 +140,13 @@ Live risk combines five weighted factors: session fatigue, recent phone activity
 ## Completed
 
 * **Stages 0–8.1** — Full CV pipeline, gaze, risk, analytics, dashboard
-* **Stage 9.1 (partial)** — paths module, macOS launchers, build scripts, home screen, persistent summary, dashboard button, quit-with-q summary
+* **Stage 9.1** — paths module, macOS launchers, build scripts, home screen, persistent summary, dashboard button, quit-with-q summary, PyInstaller build verification, focus-only release zip workflow
 * **Stage 9 (partial)** — dashboard chart polish (Altair), removed per-frame phone confidence debug logging
 
 ## In Progress
 
 * **Stage 10.1** — Productivity intelligence foundation (derived metrics, baselines, habit analytics)
-* **Stage 9** — Screenshots, demo video, config system, PyInstaller verification, public release
+* **Stage 9** — Screenshots, demo video, config system, public GitHub release
 
 ## Remaining Polish
 

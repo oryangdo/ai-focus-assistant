@@ -193,4 +193,4 @@ Evolve from attention monitoring into personalized productivity insights using e
 
 **Stage 10.1:** Build the productivity intelligence foundation — derived metrics, personal baselines, habit analytics, and extended time-of-day analysis on top of `sessions.csv`.
 
-Remaining polish outside Stage 10: live HUD gaze-away seconds total, README screenshots/GIFs, demo video, PyInstaller build verification, public release.
+Remaining polish outside Stage 10: live HUD gaze-away seconds total, README screenshots/GIFs, demo video, public GitHub release.
