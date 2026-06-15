@@ -78,6 +78,8 @@
 * [x] Dashboard data loading
 * [x] Historical visualization
 * [x] Launch from session summary (Open Dashboard button)
+* [x] Altair charts with readable axis labels
+* [x] Non-interactive charts (no zoom/pan; page scroll preserved)
 
 ---
 
@@ -117,25 +119,53 @@
 
 * [ ] Posture tracking
 * [ ] Eye gaze tracking (fine-grained)
-* [ ] Study recommendation engine
 
 ---
 
 # Stage 9 — Product Polish
 
 * [ ] Config/settings system
-* [ ] Better UI/UX polish
-* [ ] Dashboard redesign
-* [x] App packaging (scripts + launchers — build verification in progress)
-* [x] Installer/build pipeline (`build_mac_app.sh`, `package_release.sh`)
+* [x] Dashboard UI polish (Altair charts, readable labels, static graphs)
 * [ ] Demo video
 * [x] Professional README
 * [ ] Screenshots/GIFs (placeholder section only)
-* [ ] Public GitHub release
+* [x] App packaging (scripts + launchers)
+* [x] Installer/build pipeline (`build_mac_app.sh`, `package_release.sh`)
+* [x] PyInstaller build verification and release zip
+* [x] Focus-only release zip workflow (`release_mac.sh`, `verify_release.sh`)
+* [ ] Public GitHub release (upload zip to Releases)
 
 ---
 
-# Stage 10 — Stretch Goals
+# Stage 10 — Productivity Intelligence
+
+Evolve from attention monitoring into personalized productivity insights using existing `sessions.csv` data.
+
+## Stage 10.1 — Intelligence Foundation
+
+* [ ] Derived session metrics (phone/gaze ratios, distraction density, risk spread)
+* [ ] Personal baselines and “vs your average” comparisons
+* [ ] Extended time-of-day analysis (hour, weekday, heatmap data)
+* [ ] Study habit metrics (streaks, weekly volume, completion rate)
+* [ ] Penalty decomposition (explain focus score breakdown)
+* [ ] Phone vs gaze distraction profile
+
+## Stage 10.2 — Recommendations + Dashboard
+
+* [ ] Rule-based recommendation engine (`src/recommendations.py`)
+* [ ] Dashboard insights panel (weekly summary, best time window)
+* [ ] Productivity DNA / attention breakdown charts
+* [ ] One-line insight on session summary (“+8 vs your avg”)
+
+## Stage 10.3 — Predictive & ML-Ready (optional)
+
+* [ ] Pre-session expected score briefing
+* [ ] Focus quality tiers (Deep Work / Solid / Fragmented / At Risk)
+* [ ] ML feature export from session history
+
+---
+
+# Future / Stretch Goals
 
 * [ ] Multi-user support
 * [ ] Cloud sync
@@ -144,8 +174,7 @@
 * [ ] Embedded ESP32 companion device
 * [ ] Hardware focus indicator
 * [ ] Posture tracking
-* [ ] Eye gaze tracking
-* [ ] Study recommendation engine
+* [ ] Fine-grained eye gaze tracking
 
 ---
 
@@ -162,4 +191,6 @@
 
 # Current Immediate Goal
 
-Complete Stage 9.1: verify PyInstaller build, ship release zip (focus app + dashboard launcher), add README screenshots. Remaining 8.1 polish: live HUD gaze-away total.
+**Stage 10.1:** Build the productivity intelligence foundation — derived metrics, personal baselines, habit analytics, and extended time-of-day analysis on top of `sessions.csv`.
+
+Remaining polish outside Stage 10: live HUD gaze-away seconds total, README screenshots/GIFs, demo video, PyInstaller build verification, public release.

@@ -1,50 +1,39 @@
 #!/bin/bash
-# Create a shareable macOS release zip (focus app + dashboard launcher).
+# Create a shareable macOS release zip for GitHub Releases (focus app only).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-FOCUS_APP="dist/AI Focus Assistant.app"
-DASHBOARD_APP="macos/Open Dashboard.app"
+APP_NAME="AI Focus Assistant"
+FOCUS_APP="dist/${APP_NAME}.app"
 RELEASE_DIR="release/AI-Focus-Assistant-mac"
 ZIP_PATH="release/AI-Focus-Assistant-mac.zip"
+README_TEMPLATE="scripts/release_README.txt"
+
+if [[ "$(uname)" != "Darwin" ]]; then
+    echo "Error: this script must run on macOS."
+    exit 1
+fi
 
 if [[ ! -d "$FOCUS_APP" ]]; then
     echo "Error: $FOCUS_APP not found. Run ./scripts/build_mac_app.sh first."
     exit 1
 fi
 
-if [[ ! -d "$DASHBOARD_APP" ]]; then
-    echo "Error: $DASHBOARD_APP not found."
+if [[ ! -f "$README_TEMPLATE" ]]; then
+    echo "Error: $README_TEMPLATE not found."
     exit 1
 fi
 
-echo "==> Assembling release bundle"
+echo "==> Assembling release bundle (focus app only)"
 rm -rf "$RELEASE_DIR" "$ZIP_PATH"
 mkdir -p "$RELEASE_DIR"
 
+# Avoid AppleDouble (__MACOSX) metadata in the release zip.
+export COPYFILE_DISABLE=1
 cp -R "$FOCUS_APP" "$RELEASE_DIR/"
-cp -R "$DASHBOARD_APP" "$RELEASE_DIR/"
-
-cat > "$RELEASE_DIR/README.txt" <<'EOF'
-AI Focus Assistant — macOS Release
-
-1. Unzip this folder
-2. Double-click "AI Focus Assistant.app" to start a focus session
-   - Press SPACE on the home screen to begin
-   - Allow camera access when macOS prompts you
-3. Double-click "Open Dashboard.app" to view session history in your browser
-   - Requires one-time Python setup (see GitHub repo) unless you received
-     a full installer bundle with dependencies included
-
-Session data is stored at:
-  ~/Library/Application Support/AI Focus Assistant/data/sessions.csv
-
-The focus app and dashboard are separate apps:
-  - Focus app: live webcam session (standalone, no Python needed)
-  - Dashboard: opens Safari/Chrome with charts (needs Python + Streamlit)
-EOF
+cp "$README_TEMPLATE" "$RELEASE_DIR/README.txt"
 
 echo "==> Creating zip"
 mkdir -p release
@@ -52,4 +41,11 @@ ditto -c -k --sequesterRsrc --keepParent "$RELEASE_DIR" "$ZIP_PATH"
 
 echo
 echo "Release ready: $ROOT/$ZIP_PATH"
+echo "Contents:"
+echo "  AI-Focus-Assistant-mac/README.txt"
+echo "  AI-Focus-Assistant-mac/${APP_NAME}.app"
+echo
 du -sh "$FOCUS_APP" "$ZIP_PATH"
+echo
+echo "Upload $ZIP_PATH to GitHub Releases."
+echo "Run ./scripts/verify_release.sh to smoke-test the bundle."

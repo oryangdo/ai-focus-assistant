@@ -137,7 +137,20 @@ pip install -r requirements.txt
 
 First run auto-downloads YOLO weights and the MediaPipe face model into your user cache if they are not bundled with the app.
 
-### Desktop use (macOS)
+### Download for macOS (no Python required)
+
+**End users:** download the latest **`AI-Focus-Assistant-mac.zip`** from [GitHub Releases](https://github.com/oryangdo/summer_project/releases).
+
+```
+Unzip → open AI-Focus-Assistant-mac → double-click AI Focus Assistant.app
+→ allow camera → press SPACE to start → session saves automatically → summary appears
+```
+
+The zip includes a `README.txt` with Gatekeeper (right-click → Open) instructions and where session data is saved. No Terminal or Python setup is required for focus sessions.
+
+> **Note:** The dashboard is not included in the release zip (it requires a separate Python setup). See [Analytics & dashboard](#analytics--dashboard) below.
+
+### Desktop use (macOS, from source)
 
 **Option A — repo launchers (one-time Python setup)**
 
@@ -152,21 +165,23 @@ Then double-click:
 | `macos/AI Focus Assistant.app` | Opens the live webcam focus session |
 | `macos/Open Dashboard.app` | Opens the Streamlit dashboard in your browser |
 
-**Option B — standalone release zip (focus app for end users)**
+**Option B — build a release zip (maintainers)**
 
-Build and package on your Mac:
+On macOS, build and verify a GitHub Release artifact:
 
 ```bash
-./scripts/build_mac_app.sh
-./scripts/package_release.sh
+./scripts/release_mac.sh
 ```
 
-Output: `release/AI-Focus-Assistant-mac.zip` containing:
+This runs PyInstaller, packages `release/AI-Focus-Assistant-mac.zip` (focus app + `README.txt` only), and smoke-tests launch + session save. Upload the zip to [GitHub Releases](https://github.com/oryangdo/summer_project/releases). The zip is gitignored and is not committed to the repository.
 
-| App | What it does |
-|-----|----------------|
-| `AI Focus Assistant.app` | Standalone focus session (~1 GB, no Python required) |
-| `Open Dashboard.app` | Opens dashboard in browser (requires Python + Streamlit setup) |
+Individual steps:
+
+```bash
+./scripts/build_mac_app.sh      # PyInstaller build → dist/AI Focus Assistant.app
+./scripts/package_release.sh    # → release/AI-Focus-Assistant-mac.zip
+./scripts/verify_release.sh     # unzip, launch, and CSV smoke test
+```
 
 | Topic | Detail |
 |-------|--------|
@@ -179,7 +194,7 @@ Output: `release/AI-Focus-Assistant-mac.zip` containing:
 | Charts | `~/Library/Application Support/AI Focus Assistant/reports/` |
 | Dashboard UI | Opens in **Safari/Chrome** — not embedded in the focus app window |
 
-The focus app and dashboard are **two separate apps**. The standalone focus `.app` does not bundle Streamlit; use `Open Dashboard.app` (with Python installed) when you want full history and charts.
+The focus app in the release zip is standalone. The repo `macos/` launchers and dashboard require a one-time Python setup. The Streamlit dashboard is not bundled in the release zip.
 
 ---
 
@@ -205,7 +220,7 @@ python -m src.analytics
 python -m streamlit run src/dashboard.py
 ```
 
-Or double-click `macos/Open Dashboard.app` / `Open Dashboard.app` from the release zip.
+Or double-click `macos/Open Dashboard.app` after running `./scripts/setup_mac_apps.sh`.
 
 ---
 
@@ -217,9 +232,9 @@ Sessions append to `~/Library/Application Support/AI Focus Assistant/data/sessio
 
 ## Roadmap
 
-- **In progress:** Stage 9.1 macOS packaging (build + release zip)
-- **Next:** Screenshots/GIFs, demo video, config system, public release
-- **Future:** ML-based distraction prediction, study recommendations
+- **In progress:** Stage 10.1 productivity intelligence (derived metrics, personal baselines, habit insights)
+- **Next:** Stage 10.2 recommendations + dashboard insights panel
+- **Also pending:** Stage 9 screenshots/GIFs, demo video, config system, public release
 
 Details: [`MASTER_CHECKLIST.md`](MASTER_CHECKLIST.md) · [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 

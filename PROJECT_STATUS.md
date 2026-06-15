@@ -58,7 +58,8 @@ The application detects phone and gaze distractions during Pomodoro focus sessio
 
 * Streamlit dashboard (opens in web browser)
 * Session table with gaze and risk columns
-* Historical charts (focus, phone, risk, gaze)
+* Altair charts (focus, phone, risk, gaze) with readable axis labels
+* Static charts — no zoom/pan; normal page scrolling preserved
 * Aggregate metrics with formula help text
 * Launch via `Open Dashboard.app`, session summary button, or CLI
 
@@ -66,8 +67,10 @@ The application detects phone and gaze distractions during Pomodoro focus sessio
 
 * macOS repo launchers in `macos/` (double-click after setup)
 * PyInstaller build script: `scripts/build_mac_app.sh`
-* Release zip script: `scripts/package_release.sh`
-* Standalone focus `.app` (~1 GB) + separate dashboard launcher in release bundle
+* Release workflow: `scripts/release_mac.sh` (build → package → verify)
+* Focus-only zip for GitHub Releases: `release/AI-Focus-Assistant-mac.zip` (gitignored)
+* Release zip includes `README.txt` with Gatekeeper and camera instructions
+* `scripts/verify_release.sh` — automated launch + session CSV smoke test
 
 ---
 
@@ -91,7 +94,9 @@ The application detects phone and gaze distractions during Pomodoro focus sessio
 
 * scripts/setup_mac_apps.sh — one-time dev launcher setup
 * scripts/build_mac_app.sh — PyInstaller standalone build
-* scripts/package_release.sh — zip focus app + dashboard launcher
+* scripts/package_release.sh — focus-only release zip
+* scripts/verify_release.sh — release smoke tests
+* scripts/release_mac.sh — full macOS release pipeline
 
 ## User Data (runtime)
 
@@ -136,17 +141,19 @@ Live risk combines five weighted factors: session fatigue, recent phone activity
 
 * **Stages 0–8.1** — Full CV pipeline, gaze, risk, analytics, dashboard
 * **Stage 9.1 (partial)** — paths module, macOS launchers, build scripts, home screen, persistent summary, dashboard button, quit-with-q summary
+* **Stage 9 (partial)** — dashboard chart polish (Altair), removed per-frame phone confidence debug logging
 
 ## In Progress
 
-* **Stage 9.1** — Complete PyInstaller build verification and release zip
-* **Stage 9** — Screenshots, demo video, config system, public release
+* **Stage 10.1** — Productivity intelligence foundation (derived metrics, baselines, habit analytics)
+* **Stage 9** — Screenshots, demo video, config system, PyInstaller verification, public release
 
 ## Remaining Polish
 
 * Live HUD running gaze-away seconds total (not just event count)
 * Screenshot/GIF assets for README
 * Demo video
+* Stage 10.2+ — recommendations engine, insights panel, predictive briefing
 
 ---
 
@@ -155,5 +162,5 @@ Live risk combines five weighted factors: session fatigue, recent phone activity
 * Trends based on a small session dataset
 * Live HUD shows gaze event count but not running gaze-away seconds total
 * Standalone focus app excludes Streamlit — dashboard requires separate launcher + Python setup
-* UI and dashboard could use further polish
 * README screenshot placeholders until assets are added
+* Productivity intelligence layer not yet built — analytics are descriptive, not yet personalized or recommendatory
