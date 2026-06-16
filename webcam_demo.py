@@ -8,6 +8,7 @@ Draws a small FPS + detection summary panel on top of the video.
 Press 'q' to quit.
 """
 
+import sys
 import time
 from collections import Counter
 
@@ -25,13 +26,15 @@ from src.hud import (
     summary_hit_test,
 )
 from src.paths import ensure_runtime_dirs, ensure_yolo_model
-from src.pomodoro import PomodoroTimer
+from src.pomodoro import PomodoroTimer, SessionData
 from src.risk_estimator import RiskEstimator, RiskEstimate, DistractionWarning
-from src.session_logger import ensure_sessions_csv, get_csv_path, log_session
+from src.session_logger import CSV_HEADERS, ensure_sessions_csv, get_csv_path, log_session
 from src.ui_utils import show_error
 
 # Minimum confidence for ANY box to be returned by YOLO (0.0–1.0).
 DETECTION_CONFIDENCE_THRESHOLD = 0.60
+
+PACKAGED_SMOKE_TEST_TIMESTAMP = "PACKAGED_SMOKE_TEST"
 
 # COCO dataset label for smartphones (used by default YOLO weights)
 PHONE_CLASS_NAME = "cell phone"
@@ -43,6 +46,53 @@ PHONE_STREAK_DECAY = 1
 WINDOW_NAME = "YOLO Webcam"
 FPS_SMOOTHING = 0.9
 RISK_SAMPLE_INTERVAL = 30  # ~1 second at 30fps
+
+
+def run_packaged_smoke_test() -> int:
+    """
+    Verify a packaged build can write session data without opening the camera.
+
+    Used by scripts/verify_release.sh. Appends and then removes a marker row.
+    """
+    import csv
+
+    ensure_runtime_dirs()
+    ensure_sessions_csv()
+
+    session = SessionData(
+        timestamp=PACKAGED_SMOKE_TEST_TIMESTAMP,
+        duration_seconds=1.0,
+        distractions=0,
+        phone_visible_seconds=0.0,
+        focus_score=100,
+    )
+    log_session(session)
+
+    csv_path = get_csv_path()
+    if not csv_path.is_file():
+        print(f"FAIL: sessions.csv not created at {csv_path}", file=sys.stderr)
+        return 1
+
+    with open(csv_path, newline="") as f:
+        rows = list(csv.reader(f))
+
+    if not any(
+        len(row) > 0 and row[0] == PACKAGED_SMOKE_TEST_TIMESTAMP
+        for row in rows[1:]
+    ):
+        print(f"FAIL: smoke test row not found in {csv_path}", file=sys.stderr)
+        return 1
+
+    cleaned = [rows[0]]
+    cleaned.extend(row for row in rows[1:] if row and row[0] != PACKAGED_SMOKE_TEST_TIMESTAMP)
+
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(rows[0] if rows else CSV_HEADERS)
+        writer.writerows(cleaned[1:])
+
+    print(f"OK: packaged session save verified at {csv_path}")
+    return 0
 
 
 def load_historical_stats() -> tuple[float, float, float, float]:
@@ -106,14 +156,6 @@ def cell_phone_confidences(result, class_names: dict[int, str]) -> list[float]:
 def frame_qualifies_for_phone_streak(phone_scores: list[float]) -> bool:
     """True if this frame has at least one cell phone at or above the threshold."""
     return any(score >= PHONE_CONFIDENCE_THRESHOLD for score in phone_scores)
-
-
-def print_cell_phone_debug(phone_scores: list[float]) -> None:
-    """Log raw phone confidences so you can compare real phones vs false positives."""
-    if not phone_scores:
-        return
-    formatted = ", ".join(f"{s:.3f}" for s in phone_scores)
-    print(f"cell phone confidence: [{formatted}]")
 
 
 def update_risk_and_warnings(
@@ -316,7 +358,6 @@ def main() -> None:
             annotated_frame = result.plot()
 
             phone_scores = cell_phone_confidences(result, model.names)
-            print_cell_phone_debug(phone_scores)
 
             if frame_qualifies_for_phone_streak(phone_scores):
                 phone_streak += 1
@@ -444,4 +485,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--packaged-smoke-test":
+        sys.exit(run_packaged_smoke_test())
     main()

@@ -66,3 +66,6 @@ echo "Run the packaged app:"
 echo "  open \"$ROOT/$DIST_APP\""
 echo
 echo "On first launch, allow camera access when macOS prompts you."
+echo
+echo "Create a GitHub Release zip:"
+echo "  ./scripts/release_mac.sh"

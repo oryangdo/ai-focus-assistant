@@ -4,6 +4,7 @@ Streamlit dashboard for focus session analytics.
 Run with: .venv/bin/python -m streamlit run src/dashboard.py
 """
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -11,6 +12,90 @@ from src.session_logger import CSV_HEADERS, ensure_sessions_csv, get_csv_path
 
 
 DATA_FILE = get_csv_path()
+CHART_HEIGHT = 280
+
+# Clip any internal chart overflow without blocking page scroll.
+CHART_CONTAINER_CSS = """
+<style>
+div[data-testid="stVegaLiteChart"],
+div[data-testid="stVegaLiteChart"] .vega-embed {
+    overflow: hidden !important;
+}
+</style>
+"""
+
+
+def _finalize_chart(chart: alt.Chart) -> alt.Chart:
+    """Lock chart size and disable built-in pan/zoom interactions."""
+    return (
+        chart
+        .properties(
+            width="container",
+            height=CHART_HEIGHT,
+            padding={"left": 10, "top": 10, "right": 10, "bottom": 10},
+            usermeta={"embedOptions": {"actions": False}},
+        )
+        .configure_view(strokeWidth=0)
+        .configure_axis(labelFontSize=12, titleFontSize=12)
+    )
+
+
+def session_line_chart(
+    data: pd.DataFrame,
+    y: str,
+    y_title: str,
+    color: str,
+    y_domain: tuple[float, float] | None = None,
+) -> alt.Chart:
+    """Line chart with readable axis labels and horizontal session ticks."""
+    y_enc = alt.Y(y, title=y_title)
+    if y_domain is not None:
+        y_enc = alt.Y(y, title=y_title, scale=alt.Scale(domain=list(y_domain)))
+
+    return _finalize_chart(
+        alt.Chart(data)
+        .mark_line(color=color, point=True)
+        .encode(
+            x=alt.X("Session:O", title="Session", axis=alt.Axis(labelAngle=0)),
+            y=y_enc,
+        )
+    )
+
+
+def session_bar_chart(
+    data: pd.DataFrame,
+    y: str,
+    y_title: str,
+    color: str,
+) -> alt.Chart:
+    """Bar chart with readable axis labels and horizontal session ticks."""
+    return _finalize_chart(
+        alt.Chart(data)
+        .mark_bar(color=color)
+        .encode(
+            x=alt.X("Session:O", title="Session", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y(y, title=y_title),
+        )
+    )
+
+
+def category_bar_chart(
+    data: pd.DataFrame,
+    x: str,
+    y: str,
+    x_title: str,
+    y_title: str,
+    color: str,
+) -> alt.Chart:
+    """Categorical bar chart with horizontal x-axis labels."""
+    return _finalize_chart(
+        alt.Chart(data)
+        .mark_bar(color=color)
+        .encode(
+            x=alt.X(f"{x}:N", title=x_title, axis=alt.Axis(labelAngle=0)),
+            y=alt.Y(f"{y}:Q", title=y_title),
+        )
+    )
 
 
 def load_data() -> pd.DataFrame | None:
@@ -51,6 +136,8 @@ def main():
         page_icon="🎯",
         layout="wide",
     )
+
+    st.markdown(CHART_CONTAINER_CSS, unsafe_allow_html=True)
     
     # Title
     st.title("🎯 Focus Session Dashboard")
@@ -119,13 +206,19 @@ def main():
     )
 
     chart_df = df.copy()
-    chart_df["Session"] = range(1, len(df) + 1)
+    chart_df["Session"] = [str(i) for i in range(1, len(df) + 1)]
+    chart_df["Focus Score"] = chart_df["focus_score"]
+    chart_df["Phone Time (s)"] = chart_df["phone_visible_seconds"]
+    chart_df["Distractions"] = chart_df["distractions"]
+    chart_df["Peak Risk"] = chart_df["peak_risk_score"]
+    chart_df["Avg Risk"] = chart_df["avg_risk_score"]
+    chart_df["Gaze Away (s)"] = chart_df["gaze_away_seconds"]
+    chart_df["Gaze Events"] = chart_df["gaze_distractions"]
     
-    st.line_chart(
-        chart_df,
-        x="Session",
-        y="focus_score",
-        color="#4CAF50",
+    st.altair_chart(
+        session_line_chart(chart_df, "Focus Score", "Focus Score", "#4CAF50", y_domain=(0, 100)),
+        use_container_width=True,
+        height=CHART_HEIGHT,
     )
     
     # Two columns for phone time and distractions
@@ -133,20 +226,18 @@ def main():
     
     with col_left:
         st.subheader("Phone Time per Session")
-        st.bar_chart(
-            chart_df,
-            x="Session",
-            y="phone_visible_seconds",
-            color="#2196F3",
+        st.altair_chart(
+            session_bar_chart(chart_df, "Phone Time (s)", "Seconds", "#2196F3"),
+            use_container_width=True,
+            height=CHART_HEIGHT,
         )
     
     with col_right:
         st.subheader("Distractions per Session")
-        st.bar_chart(
-            chart_df,
-            x="Session",
-            y="distractions",
-            color="#FF9800",
+        st.altair_chart(
+            session_bar_chart(chart_df, "Distractions", "Count", "#FF9800"),
+            use_container_width=True,
+            height=CHART_HEIGHT,
         )
     
     # Risk charts (if data available)
@@ -158,20 +249,18 @@ def main():
         
         with col_risk1:
             st.write("**Peak Risk Score per Session**")
-            st.bar_chart(
-                chart_df,
-                x="Session",
-                y="peak_risk_score",
-                color="#F44336",
+            st.altair_chart(
+                session_bar_chart(chart_df, "Peak Risk", "Risk Score", "#F44336"),
+                use_container_width=True,
+            height=CHART_HEIGHT,
             )
         
         with col_risk2:
             st.write("**Average Risk Score per Session**")
-            st.line_chart(
-                chart_df,
-                x="Session",
-                y="avg_risk_score",
-                color="#FF5722",
+            st.altair_chart(
+                session_line_chart(chart_df, "Avg Risk", "Risk Score", "#FF5722", y_domain=(0, 100)),
+                use_container_width=True,
+            height=CHART_HEIGHT,
             )
         
         # Risk level distribution
@@ -183,12 +272,27 @@ def main():
             else:
                 return "HIGH"
         
-        risk_dist = df["peak_risk_score"].apply(categorize_risk).value_counts()
+        risk_counts = df["peak_risk_score"].apply(categorize_risk).value_counts()
+        risk_dist = pd.DataFrame({
+            "Risk Level": ["LOW", "MEDIUM", "HIGH"],
+            "Sessions": [int(risk_counts.get(level, 0)) for level in ["LOW", "MEDIUM", "HIGH"]],
+        })
         
         col_dist, col_info = st.columns([1, 2])
         with col_dist:
             st.write("**Peak Risk Distribution**")
-            st.bar_chart(risk_dist)
+            st.altair_chart(
+                category_bar_chart(
+                    risk_dist,
+                    x="Risk Level",
+                    y="Sessions",
+                    x_title="Risk Level",
+                    y_title="Sessions",
+                    color="#2196F3",
+                ),
+                use_container_width=True,
+            height=CHART_HEIGHT,
+            )
         
         with col_info:
             st.write("**Risk Level Guide**")
@@ -222,10 +326,18 @@ def main():
         gchart1, gchart2 = st.columns(2)
         with gchart1:
             st.write("**Gaze Away Time per Session**")
-            st.bar_chart(chart_df, x="Session", y="gaze_away_seconds", color="#9C27B0")
+            st.altair_chart(
+                session_bar_chart(chart_df, "Gaze Away (s)", "Seconds", "#9C27B0"),
+                use_container_width=True,
+            height=CHART_HEIGHT,
+            )
         with gchart2:
             st.write("**Gaze Distractions per Session**")
-            st.bar_chart(chart_df, x="Session", y="gaze_distractions", color="#673AB7")
+            st.altair_chart(
+                session_bar_chart(chart_df, "Gaze Events", "Count", "#673AB7"),
+                use_container_width=True,
+            height=CHART_HEIGHT,
+            )
 
         if len(df) >= 2:
             gaze_delta = float(df["gaze_away_seconds"].iloc[-1] - df["gaze_away_seconds"].iloc[-2])
