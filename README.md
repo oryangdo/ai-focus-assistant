@@ -8,24 +8,53 @@ Built with **YOLOv8**, **MediaPipe**, **OpenCV**, and **Streamlit**.
 
 ## Demo
 
-See **Demo video** below. Planned walkthrough: home screen → focus session → session summary → optional dashboard.
+Home screen → focus session → detection → session summary → Streamlit dashboard.
 
----
+### Focus session app
 
-## Screenshots
+**Home screen** — press **SPACE** to start a Pomodoro focus session.
 
-Screenshots and GIFs are planned for Stage 9. Add assets to `docs/images/` when ready:
+![Home screen](docs/images/home-screen.png)
 
-- `live-hud.png` — live focus session with HUD
-- `session-summary.png` — session complete overlay with Open Dashboard button
-- `dashboard.png` — Streamlit dashboard in browser
-- `phone-detection.gif`, `gaze-tracking.gif`, `risk-warning.gif` — short demos
+**Live HUD** — timer, gaze status, and distraction risk while focusing.
+
+![Live focus session HUD](docs/images/live-hud.png)
+
+**Detection in action**
+
+| Phone detection | Gaze-away detection |
+| :---: | :---: |
+| ![YOLO phone detection with MEDIUM risk](docs/images/phone-detection.png) | ![Head turned away with gaze status AWAY](docs/images/gaze-away.png) |
+
+**Session summary** — focus score, distraction breakdown, and **Open Dashboard** button.
+
+![Session complete overlay](docs/images/session-summary.png)
+
+### Streamlit dashboard
+
+**Overview** — aggregate metrics and focus score trend across sessions.
+
+![Dashboard overview with focus score chart](docs/images/dashboard-overview.png)
+
+**Session analytics** — phone time, distractions, and risk charts.
+
+![Dashboard analytics charts](docs/images/dashboard-analytics.png)
+
+**Risk & gaze analysis**
+
+| Risk analysis | Gaze analysis |
+| :---: | :---: |
+| ![Risk distribution and session trends](docs/images/dashboard-risk.png) | ![Gaze away time and distraction events](docs/images/dashboard-gaze.png) |
+
+**Session history** — full table with focus scores, risk, and gaze metrics.
+
+![Session history table](docs/images/dashboard-history.png)
 
 ---
 
 ## Demo video
 
-**[▶ Watch demo video](https://youtu.be/PLACEHOLDER)** *(coming in Stage 9)*
+**[▶ Watch demo video](https://youtu.be/PLACEHOLDER)** *(coming soon)*
 
 ---
 
@@ -243,7 +272,7 @@ Sessions append to `~/Library/Application Support/AI Focus Assistant/data/sessio
 
 - **In progress:** Stage 10.1 productivity intelligence (derived metrics, personal baselines, habit insights)
 - **Next:** Stage 10.2 recommendations + dashboard insights panel
-- **Also pending:** Stage 9 screenshots/GIFs, demo video, config system, public release
+- **Also pending:** demo video, config system, public GitHub release
 
 Details: [`MASTER_CHECKLIST.md`](MASTER_CHECKLIST.md) · [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 

@@ -126,9 +126,9 @@
 
 * [ ] Config/settings system
 * [x] Dashboard UI polish (Altair charts, readable labels, static graphs)
-* [ ] Demo video
+* [x] Demo video *(placeholder link — upload YouTube when ready)*
 * [x] Professional README
-* [ ] Screenshots/GIFs (placeholder section only)
+* [x] Screenshots/GIFs (`docs/images/`)
 * [x] App packaging (scripts + launchers)
 * [x] Installer/build pipeline (`build_mac_app.sh`, `package_release.sh`)
 * [x] PyInstaller build verification and release zip
@@ -193,4 +193,4 @@ Evolve from attention monitoring into personalized productivity insights using e
 
 **Stage 10.1:** Build the productivity intelligence foundation — derived metrics, personal baselines, habit analytics, and extended time-of-day analysis on top of `sessions.csv`.
 
-Remaining polish outside Stage 10: live HUD gaze-away seconds total, README screenshots/GIFs, demo video, public GitHub release.
+Remaining polish outside Stage 10: live HUD gaze-away seconds total, demo video (YouTube upload), public GitHub release.
