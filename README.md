@@ -8,7 +8,7 @@ Built with **YOLOv8**, **MediaPipe**, **OpenCV**, and **Streamlit**.
 
 ## Demo
 
-<a href="https://youtu.be/pXaMNblhLVE">
+<a href="https://youtu.be/pXaMNblhLVE" target="_blank" rel="noopener noreferrer">
   <img src="https://img.youtube.com/vi/pXaMNblhLVE/maxresdefault.jpg" alt="AI Focus Assistant — demo video (click to play on YouTube)" width="720">
 </a>
 
