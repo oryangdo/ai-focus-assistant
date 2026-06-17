@@ -54,7 +54,7 @@ Home screen → focus session → detection → session summary → Streamlit da
 
 ## Demo video
 
-**[▶ Watch demo video](https://youtu.be/PLACEHOLDER)** *(coming soon)*
+**[▶ Watch demo video](https://youtu.be/pXaMNblhLVE)**
 
 ---
 
@@ -272,7 +272,7 @@ Sessions append to `~/Library/Application Support/AI Focus Assistant/data/sessio
 
 - **In progress:** Stage 10.1 productivity intelligence (derived metrics, personal baselines, habit insights)
 - **Next:** Stage 10.2 recommendations + dashboard insights panel
-- **Also pending:** demo video, config system, public GitHub release
+- **Also pending:** config system, public GitHub release
 
 Details: [`MASTER_CHECKLIST.md`](MASTER_CHECKLIST.md) · [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 

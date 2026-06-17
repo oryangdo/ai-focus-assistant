@@ -151,8 +151,7 @@ Live risk combines five weighted factors: session fatigue, recent phone activity
 ## Remaining Polish
 
 * Live HUD running gaze-away seconds total (not just event count)
-* Screenshot/GIF assets for README
-* Demo video
+* Public GitHub release (upload macOS zip)
 * Stage 10.2+ — recommendations engine, insights panel, predictive briefing
 
 ---

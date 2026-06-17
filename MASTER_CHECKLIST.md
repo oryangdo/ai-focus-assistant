@@ -126,7 +126,7 @@
 
 * [ ] Config/settings system
 * [x] Dashboard UI polish (Altair charts, readable labels, static graphs)
-* [x] Demo video *(placeholder link — upload YouTube when ready)*
+* [x] Demo video ([YouTube](https://youtu.be/pXaMNblhLVE))
 * [x] Professional README
 * [x] Screenshots/GIFs (`docs/images/`)
 * [x] App packaging (scripts + launchers)
@@ -193,4 +193,4 @@ Evolve from attention monitoring into personalized productivity insights using e
 
 **Stage 10.1:** Build the productivity intelligence foundation — derived metrics, personal baselines, habit analytics, and extended time-of-day analysis on top of `sessions.csv`.
 
-Remaining polish outside Stage 10: live HUD gaze-away seconds total, demo video (YouTube upload), public GitHub release.
+Remaining polish outside Stage 10: live HUD gaze-away seconds total, public GitHub release.
