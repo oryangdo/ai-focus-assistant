@@ -8,11 +8,7 @@ Built with **YOLOv8**, **MediaPipe**, **OpenCV**, and **Streamlit**.
 
 ## Demo
 
-<a href="https://youtu.be/pXaMNblhLVE" target="_blank" rel="noopener noreferrer">
-  <img src="https://img.youtube.com/vi/pXaMNblhLVE/maxresdefault.jpg" alt="AI Focus Assistant — demo video (click to play on YouTube)" width="720">
-</a>
-
-*Click the thumbnail to watch the full walkthrough on YouTube.*
+**[AI Focus Assistant — Demo | YOLO Phone Detection + Gaze Tracking Pomodoro App](https://youtu.be/pXaMNblhLVE)**
 
 Home screen → focus session → detection → session summary → Streamlit dashboard.
 
