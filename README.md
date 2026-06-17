@@ -8,6 +8,12 @@ Built with **YOLOv8**, **MediaPipe**, **OpenCV**, and **Streamlit**.
 
 ## Demo
 
+<a href="https://youtu.be/pXaMNblhLVE">
+  <img src="https://img.youtube.com/vi/pXaMNblhLVE/maxresdefault.jpg" alt="AI Focus Assistant — demo video (click to play on YouTube)" width="720">
+</a>
+
+*Click the thumbnail to watch the full walkthrough on YouTube.*
+
 Home screen → focus session → detection → session summary → Streamlit dashboard.
 
 ### Focus session app
@@ -49,12 +55,6 @@ Home screen → focus session → detection → session summary → Streamlit da
 **Session history** — full table with focus scores, risk, and gaze metrics.
 
 ![Session history table](docs/images/dashboard-history.png)
-
----
-
-## Demo video
-
-**[▶ Watch demo video](https://youtu.be/pXaMNblhLVE)**
 
 ---
 
