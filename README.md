@@ -1,8 +1,8 @@
 # AI Focus Assistant
 
-An AI-powered productivity system that detects phone and gaze distractions during Pomodoro focus sessions, estimates real-time distraction risk, and turns session history into actionable analytics.
+Real-time computer-vision app for Pomodoro focus sessions. A webcam pipeline detects phone use and look-away behavior, estimates live distraction risk, scores the session, and appends the result to a session log for later analysis.
 
-Built with **YOLOv8**, **MediaPipe**, **OpenCV**, and **Streamlit**.
+Built with **Python**, **YOLOv8**, **MediaPipe**, **OpenCV**, and **Streamlit**.
 
 ---
 
@@ -56,17 +56,17 @@ Home screen → focus session → detection → session summary → Streamlit da
 
 ## Project Overview
 
-Most Pomodoro timers measure time — not *attention*. **AI Focus Assistant** runs a real-time webcam pipeline that detects phone use and look-away behavior, scores each focus session, estimates live distraction risk, and logs history for analytics.
+Most Pomodoro timers measure elapsed time. AI Focus Assistant also measures attention during that time: phone detections and head-pose look-aways feed a live risk estimate and a focus score. Each finished session is appended to a CSV that the CLI analytics and Streamlit dashboard read.
 
-Modular design: detection, gaze tracking, Pomodoro, risk estimation, persistence, and analytics are separate modules orchestrated by `webcam_demo.py`.
+Detection, gaze tracking, the Pomodoro timer, risk estimation, persistence, and analytics are separate modules. `webcam_demo.py` orchestrates them.
 
 ---
 
 ## Features
 
-- **Real-time CV** — YOLOv8 phone/person detection + MediaPipe head-pose gaze tracking
-- **Pomodoro sessions** — 25/5 focus/break cycles with live HUD and session summaries
-- **Behavioral intelligence** — live LOW / MEDIUM / HIGH risk with predictive warnings
+- **Real-time computer vision** — YOLOv8 phone and person detection, plus MediaPipe head-pose gaze tracking
+- **Pomodoro sessions** — 25/5 focus/break cycles with a live HUD and session summaries
+- **Distraction risk** — live LOW / MEDIUM / HIGH risk with on-screen warnings
 - **Analytics** — CSV logging, CLI trends, and a Streamlit dashboard
 
 ---
@@ -142,7 +142,7 @@ flowchart TB
     class ORCH orch
 ```
 
-**Stack:** OpenCV · YOLOv8 · MediaPipe · Python · CSV · Matplotlib · Streamlit
+**Stack:** Python · OpenCV · YOLOv8 · MediaPipe · CSV · Matplotlib · Streamlit
 
 ---
 
@@ -151,8 +151,8 @@ flowchart TB
 **Requirements:** Python 3.10+, webcam, macOS / Linux / Windows
 
 ```bash
-git clone https://github.com/oryangdo/summer_project.git
-cd summer_project
+git clone https://github.com/oryangdo/ai-focus-assistant.git
+cd ai-focus-assistant
 
 python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
@@ -160,20 +160,20 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-First run auto-downloads YOLO weights and the MediaPipe face model into your user cache if they are not bundled with the app.
+The first run downloads YOLOv8s weights (`yolov8s.pt`) and the MediaPipe face landmarker model into the user cache if they are not already present.
 
 ### Download for macOS (no Python required)
 
-**End users:** download the latest **`AI-Focus-Assistant-mac.zip`** from [GitHub Releases](https://github.com/oryangdo/summer_project/releases).
+**End users:** download **`AI-Focus-Assistant-mac.zip`** from the [v1.0.0 release](https://github.com/oryangdo/ai-focus-assistant/releases/tag/v1.0.0).
 
 The release zip contains:
 
 | Item | Description |
 |------|-------------|
-| `AI Focus Assistant.app` | Standalone focus sessions only (~1 GB) |
+| `AI Focus Assistant.app` | Standalone focus sessions only (~1 GB uncompressed; the published zip is about 318 MB) |
 | `README.txt` | Unzip instructions, Gatekeeper workaround, camera permission, session data path |
 
-It does **not** include the Streamlit dashboard. The dashboard requires cloning the repo and a one-time Python setup (see [Analytics & dashboard](#analytics--dashboard)).
+The zip does not include the Streamlit dashboard. The dashboard requires cloning the repo and a one-time Python setup (see [Analytics & dashboard](#analytics--dashboard)).
 
 ```
 Unzip → open AI-Focus-Assistant-mac → double-click AI Focus Assistant.app
@@ -182,7 +182,7 @@ Unzip → open AI-Focus-Assistant-mac → double-click AI Focus Assistant.app
 
 **First launch (Gatekeeper):** macOS may block the unsigned app. Right-click **AI Focus Assistant.app** → **Open** → confirm **Open**. After that, double-click works normally. Full steps are in the zip’s `README.txt`.
 
-No Terminal or Python setup is required for focus sessions in the release zip.
+Focus sessions in the release zip do not require Terminal or a Python setup.
 
 ### Desktop use (macOS, from source)
 
@@ -201,13 +201,13 @@ Then double-click:
 
 **Option B — build a release zip (maintainers)**
 
-On macOS, build and verify a GitHub Release artifact:
+On macOS, rebuild and verify the same artifact published as [v1.0.0](https://github.com/oryangdo/ai-focus-assistant/releases/tag/v1.0.0):
 
 ```bash
 ./scripts/release_mac.sh
 ```
 
-This runs PyInstaller, packages `release/AI-Focus-Assistant-mac.zip` (focus app + `README.txt` only), and smoke-tests launch + session save. Upload the zip to [GitHub Releases](https://github.com/oryangdo/summer_project/releases). The zip is gitignored and is not committed to the repository.
+This runs PyInstaller, packages `release/AI-Focus-Assistant-mac.zip` (focus app + `README.txt` only), and smoke-tests launch and session save. The zip is gitignored and is not committed to the repository.
 
 Individual steps:
 
@@ -222,13 +222,13 @@ Individual steps:
 | Start session | Home screen → press **SPACE** |
 | End session | Natural timer end or **Q** during focus → persistent summary overlay |
 | Dismiss summary | **ESC** or click **X** |
-| Open dashboard | **Source/Python setup only** — clone repo, install requirements, then use **D** / **Open Dashboard** on summary, `Open Dashboard.app`, or `streamlit run`. Not available in the standalone release app. |
+| Open dashboard | **Source/Python setup only** — clone the repo, install requirements, then use **D** / **Open Dashboard** on the summary, `Open Dashboard.app`, or `streamlit run`. The standalone release app does not include the dashboard. |
 | Camera | Allow access when macOS prompts on first launch |
 | Session data | `~/Library/Application Support/AI Focus Assistant/data/sessions.csv` |
 | Charts | `~/Library/Application Support/AI Focus Assistant/reports/` (CLI analytics; dashboard requires Python setup) |
-| Dashboard UI | Opens in **Safari/Chrome** — not embedded in the focus app window |
+| Dashboard UI | Opens in **Safari/Chrome** — the focus app window does not embed it |
 
-The **GitHub Release zip** is focus-only: `AI Focus Assistant.app` + `README.txt`. The repo `macos/` launchers run from source after `./scripts/setup_mac_apps.sh` and can open both the focus session and the dashboard.
+The **v1.0.0 zip** is focus-only: `AI Focus Assistant.app` + `README.txt`. The repo `macos/` launchers run from source after `./scripts/setup_mac_apps.sh` and can open both the focus session and the dashboard.
 
 ---
 
@@ -247,7 +247,7 @@ python webcam_demo.py    # or ./run.sh
 | **ESC** / **X** | Dismiss session summary |
 | **D** / **Open Dashboard** | Open stats in browser (when summary is visible) |
 
-**Analytics & dashboard**
+### Analytics & dashboard
 
 ```bash
 python -m src.analytics
@@ -267,8 +267,10 @@ Sessions append to `~/Library/Application Support/AI Focus Assistant/data/sessio
 ## Roadmap
 
 - **In progress:** Stage 10.1 productivity intelligence (derived metrics, personal baselines, habit insights)
-- **Next:** Stage 10.2 recommendations + dashboard insights panel
-- **Also pending:** config system, public GitHub release
+- **Next:** Stage 10.2 recommendations and a dashboard insights panel
+- **Still planned:** config/settings system
+
+The macOS focus app is already published as [v1.0.0](https://github.com/oryangdo/ai-focus-assistant/releases/tag/v1.0.0).
 
 Details: [`MASTER_CHECKLIST.md`](MASTER_CHECKLIST.md) · [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 
@@ -276,7 +278,11 @@ Details: [`MASTER_CHECKLIST.md`](MASTER_CHECKLIST.md) · [`PROJECT_STATUS.md`](P
 
 ## Troubleshooting
 
-Webcam issues → check camera permissions. Slow FPS → use `yolov8n.pt`. Empty dashboard → complete at least one session first. Import errors → activate `.venv` and reinstall requirements.
+- **Webcam will not open** — confirm a camera is connected and that the app has camera permission.
+- **Empty dashboard** — complete at least one focus session so `sessions.csv` has a row.
+- **Import errors** — activate `.venv` and reinstall with `pip install -r requirements.txt`.
+
+The detector is YOLOv8s (`yolov8s.pt`). Frame rate depends on the machine.
 
 ---
 
